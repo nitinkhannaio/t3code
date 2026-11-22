@@ -376,3 +376,17 @@ A snoozed thread keeps working and stays hidden until its wake time, even while
 its agent wakes itself for background work. It comes back early for an approval,
 a new question, a failed run, or a message or answer you send. You can snooze an existing
 question and answer when the thread wakes; the question stays unanswered.
+
+## Lock screen sessions (beta)
+
+On the macOS desktop app, you can show active agent status on your lock screen.
+Turn on **Settings → Labs → Lock screen sessions**. This experiment works on
+macOS 26.2 and 26.5, and the setting only appears on supported Macs.
+
+Anyone who can see your locked screen can see the card. By default, it groups
+work by project and shows only counts for each status, without thread titles.
+Turn on **Show thread titles on the lock screen** under the same setting if you
+want titles shown too.
+
+Keep the main T3 Code window open for the card to appear. Closing the main window
+stops it, and quitting T3 Code or turning the setting off removes it.
