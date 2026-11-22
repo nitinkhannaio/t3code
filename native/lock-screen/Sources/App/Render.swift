@@ -356,9 +356,9 @@ private func v2Projects(german: Bool) -> String {
 private func monogram(_ letters: String) -> String {
     let (background, foreground): (NSColor, NSColor) = switch letters {
     case "T3": (CardPalette.hex(0x2563eb), .white)
-    case "SE": (CardPalette.hex(0x7da2ff, 0.2), CardPalette.hex(0x9db8ff))
-    case "W": (CardPalette.hex(0x2dd4bf, 0.2), CardPalette.hex(0x5eead4))
-    default: (CardPalette.hex(0xc084fc, 0.2), CardPalette.hex(0xd8b4fe))
+    case "SE": (CardPalette.hex(0x4749ad), .white)
+    case "W": (CardPalette.hex(0x0e8477), .white)
+    default: (CardPalette.hex(0x793db2), .white)
     }
     guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 32, pixelsHigh: 32, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
                                      isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),

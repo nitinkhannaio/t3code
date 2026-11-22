@@ -7,7 +7,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 import { deriveProjectIdentity } from "./projectIdentity";
-import { projectIconColorClassName } from "./projectIconColors";
+import { PROJECT_ICON_COLORS, projectIconColorClassName } from "./projectIconColors";
 
 /** What `ProjectFavicon` would draw for a project, reduced to what the lock screen can show. */
 export type LockScreenIconSource =
@@ -47,9 +47,7 @@ function escapeXml(value: string): string {
   );
 }
 
-// The card's glass turns light or dark with the wallpaper after the icon is drawn, so icons take
-// the dark-theme shade one step deeper, which reads on both. The app's own theme never matters.
-function resolveColor(className: string): string {
+function computedColor(className: string, property: "color" | "backgroundColor"): string {
   const host = document.createElement("div");
   host.className = "dark";
   host.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;contain:strict";
@@ -58,10 +56,23 @@ function resolveColor(className: string): string {
   host.append(probe);
   document.body.append(host);
   try {
-    return `color-mix(in oklab, ${getComputedStyle(probe).color} 80%, black)`;
+    return getComputedStyle(probe)[property];
   } finally {
     host.remove();
   }
+}
+
+// The card's glass turns light or dark with the wallpaper after the icon is drawn, so icons take
+// the dark-theme shade one step deeper, which reads on both. The app's own theme never matters.
+function resolveColor(className: string): string {
+  return `color-mix(in oklab, ${computedColor(className, "color")} 80%, black)`;
+}
+
+// A translucent tint washes out on light glass and bright wallpapers, so monograms sit on a
+// solid tile of the project's swatch, deepened enough for white letters.
+function monogramTileColor(color: ProjectIconColor): string {
+  const swatch = PROJECT_ICON_COLORS.find((entry) => entry.value === color)?.swatchClassName;
+  return `color-mix(in oklab, ${computedColor(swatch ?? "bg-gray-500", "backgroundColor")} 72%, black)`;
 }
 
 function drawingSurface() {
@@ -98,11 +109,11 @@ function monogramSvg(text: string, color: ProjectIconColor): string {
   const fontFamily =
     getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim() ||
     "ui-monospace, monospace";
-  const style = escapeXml(`color: ${resolveColor(projectIconColorClassName(color))}`);
+  const style = escapeXml(`color: ${monogramTileColor(color)}`);
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 16 16" style="${style}">`,
-    `<rect width="16" height="16" rx="4" fill="currentColor" fill-opacity="0.14"/>`,
-    `<text x="8" y="10.8" text-anchor="middle" fill="currentColor" font-size="8.25" font-weight="700"`,
+    `<rect width="16" height="16" rx="4" fill="currentColor"/>`,
+    `<text x="8" y="10.8" text-anchor="middle" fill="#fff" font-size="8.25" font-weight="700"`,
     ` textLength="${glyphs === 1 ? 6 : 12}" lengthAdjust="spacingAndGlyphs" text-rendering="geometricPrecision"`,
     ` style="${escapeXml(`font-family: ${fontFamily}`)}">${escapeXml(text)}</text></svg>`,
   ].join("");
