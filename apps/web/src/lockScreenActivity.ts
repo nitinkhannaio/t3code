@@ -1,4 +1,4 @@
-import { fromServerClock } from "@t3tools/client-runtime/clock";
+import { fromServerClock, toServerClock } from "@t3tools/client-runtime/clock";
 import { scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { threadKey } from "@t3tools/client-runtime/state/entities";
 import { buildLockScreenActivity } from "@t3tools/client-runtime/state/lock-screen-activity";
@@ -24,6 +24,7 @@ import {
   createLockScreenIconCache,
   createLockScreenPublisher,
   externalStoreAtom,
+  lockScreenVisit,
   watchLockScreenSnooze,
 } from "./lockScreenActivity.logic";
 import {
@@ -84,6 +85,9 @@ function projectIconKey(project: EnvironmentProject, favicon: string | null) {
   return entry;
 }
 
+/** When the current lock began on this client's clock; null while unlocked. */
+const lockStartedAtom = Atom.make<number | null>(null);
+
 const lockScreenCardAtom = (() => {
   const presented = new WeakMap<OrchestrationV2ThreadShell, Presented>();
   return Atom.make((get) => {
@@ -92,6 +96,7 @@ const lockScreenCardAtom = (() => {
     const delegatedUnderParent = get(liveThreadShells.delegatedUnderParentAtom);
     const hidden = get(liveThreadShells.hiddenThreadKeysAtom);
     const localVisits = get(localVisitsAtom);
+    const lockedAt = get(lockStartedAtom);
     const mode = get(showTitlesAtom) ? "threads" : "projects";
     const threads: EnvironmentThreadShell[] = [];
     const drivers = new Map<string, ProviderDriverKind>();
@@ -114,9 +119,9 @@ const lockScreenCardAtom = (() => {
           entry = { request, shell: presentThreadShell(environmentId, raw, request) };
           presented.set(raw, entry);
         }
-        const lastVisitedAt = resolveThreadLastVisitedAt(
-          entry.shell.lastVisitedAt,
-          localVisits[scopedThreadKey(ref)],
+        const lastVisitedAt = lockScreenVisit(
+          resolveThreadLastVisitedAt(entry.shell.lastVisitedAt, localVisits[scopedThreadKey(ref)]),
+          lockedAt === null ? null : toServerClock(environmentId, lockedAt),
         );
         threads.push(
           lastVisitedAt === undefined || lastVisitedAt === entry.shell.lastVisitedAt
@@ -178,7 +183,11 @@ const lockScreenCardAtom = (() => {
 export function startLockScreenActivity(registry: AtomRegistry.AtomRegistry): () => void {
   const bridge = window.desktopBridge;
   if (!isLockScreenActivityAvailable || !bridge) return () => {};
-  return createLockScreenPublisher({
+  // Before the publisher subscribes, so the first locked card already ignores later visits.
+  const unsubscribeLockStart = bridge.onLockScreenLockedChange?.((locked) =>
+    registry.set(lockStartedAtom, locked ? Date.now() : null),
+  );
+  const stopPublisher = createLockScreenPublisher({
     bridge,
     settings: getClientSettings,
     subscribeSettings: subscribeClientSettings,
@@ -186,4 +195,8 @@ export function startLockScreenActivity(registry: AtomRegistry.AtomRegistry): ()
     watchCard: (onChange) => registry.subscribe(lockScreenCardAtom, onChange),
     subscribeLocale: subscribeI18n,
   });
+  return () => {
+    stopPublisher();
+    unsubscribeLockStart?.();
+  };
 }

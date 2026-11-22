@@ -27,6 +27,7 @@ import {
   createLockScreenPublisher,
   externalStoreAtom,
   lockScreenText,
+  lockScreenVisit,
   watchLockScreenSnooze,
 } from "./lockScreenActivity.logic";
 
@@ -568,5 +569,35 @@ describe("lock-screen status", () => {
       asOf: Date.parse("2026-06-01T01:00:00.000Z"),
     });
     expect(card?.rows[0]?.status ?? null).toBe(sidebarStatus(thread));
+  });
+
+  it("shows a run that ends while locked even though the open window marked its thread visited", () => {
+    const lockedAt = Date.parse("2026-06-01T00:00:45.000Z");
+    const statusOf = (latestRun: LockScreenThreadInput["latestRun"], lastVisitedAt: string) =>
+      buildLockScreenActivity({
+        threads: [
+          {
+            ...base,
+            latestRun,
+            runtime: latestRun?.status === "failed" ? runtime("failed") : null,
+            lastVisitedAt: lockScreenVisit(lastVisitedAt, lockedAt) ?? null,
+          },
+        ],
+        mode: "threads",
+        providerDriver: () => null,
+        projectName: () => null,
+        projectIcon: () => null,
+        toLocalClock: (_environmentId, ms) => ms,
+        asOf: Date.parse("2026-06-01T01:00:00.000Z"),
+      })?.rows[0]?.status ?? null;
+    // The window marks the thread visited as each run ends, after the lock.
+    expect(statusOf(run("completed", "2026-06-01T00:01:00.000Z"), visited)).toBe("done");
+    expect(statusOf(run("failed", "2026-06-01T00:01:00.000Z"), visited)).toBe("failed");
+    // A visit before the lock still counts.
+    expect(statusOf(run("completed", "2026-06-01T00:00:40.000Z"), "2026-06-01T00:00:42.000Z")).toBe(
+      null,
+    );
+    expect(lockScreenVisit(visited, null)).toBe(visited);
+    expect(lockScreenVisit(undefined, lockedAt)).toBe(undefined);
   });
 });

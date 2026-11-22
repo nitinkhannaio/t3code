@@ -47,6 +47,21 @@ export function watchLockScreenSnooze(wakesAt: number, onWake: () => void): () =
 }
 
 /**
+ * The visit the card judges Done and Failed by. While locked, the main window still marks the thread
+ * it has open as visited when its run ends, so visits after the lock count as made at the lock.
+ */
+export function lockScreenVisit(
+  lastVisitedAt: string | undefined,
+  lockedAtMs: number | null,
+): string | undefined {
+  if (lastVisitedAt === undefined || lockedAtMs === null) return lastVisitedAt;
+  const visitedAt = Date.parse(lastVisitedAt);
+  return Number.isNaN(visitedAt) || visitedAt <= lockedAtMs
+    ? lastVisitedAt
+    : new Date(lockedAtMs).toISOString();
+}
+
+/**
  * Rendered project icons by identity, so a publish reads a finished icon instead of drawing it
  * again. A miss starts one render and reads null until it settles and listeners hear of it.
  */
