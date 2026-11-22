@@ -387,6 +387,7 @@ func full(_ a: Int, _ w: Int, _ wt: Int, _ d: Int, rows: [String], asOf: String 
     let english = CardText.english(totals: totals, hidden: hidden.values)
     let text: [String: Any] = [
         "summary": english.summary, "updated": english.updated, "showFewer": english.showFewer, "agent": english.agent,
+        "expandLabel": english.expandLabel, "collapseLabel": english.collapseLabel,
         "more": Dictionary(uniqueKeysWithValues: english.more.map { (String($0.key), $0.value) }),
         "statuses": Dictionary(uniqueKeysWithValues: english.statuses.map { ($0.key.rawValue, $0.value) }),
         "duration": ["seconds": english.duration.seconds, "minutes": english.duration.minutes, "hours": english.duration.hours],
@@ -680,6 +681,7 @@ func v2Text(more: [Int: String] = [:], drop: String? = nil, override: [String: A
         "more": Dictionary(uniqueKeysWithValues: more.map { (String($0.key), $0.value) }), "showFewer": "Weniger anzeigen",
         "statuses": Dictionary(uniqueKeysWithValues: SessionStatus.allCases.map { ($0.rawValue, "DE-" + $0.shortLabel) }),
         "duration": ["seconds": "{count} Sek.", "minutes": "{count} Min.", "hours": "{hours} Std. {minutes} Min."], "agent": "Agent:in",
+        "expandLabel": "Weitere Sitzungen anzeigen", "collapseLabel": "Weitere Sitzungen ausblenden",
     ]
     if let drop { text.removeValue(forKey: drop) }
     for (k, v) in override { text[k] = v }
@@ -720,10 +722,12 @@ do {
     // Missing or malformed text rejects the line rather than inventing English.
     eq(decodeError(v2(text: nil)), .text("text"), "missing text")
     eq(decodeError(v2(text: "Updated")), .text("text"), "text not an object")
-    for field in ["summary", "updated", "more", "showFewer", "statuses", "duration", "agent"] {
+    for field in ["summary", "updated", "more", "showFewer", "expandLabel", "collapseLabel", "statuses", "duration", "agent"] {
         eq(decodeError(v2(text: v2Text(drop: field))), .text(field), "missing text.\(field)")
     }
     eq(decodeError(v2(text: v2Text(override: ["updated": 3]))), .text("updated"), "non-string template")
+    eq(live(v2())?.text.expandLabel, "Weitere Sitzungen anzeigen", "VoiceOver expand label comes from the wire")
+    eq(live(v2())?.text.collapseLabel, "Weitere Sitzungen ausblenden", "VoiceOver collapse label comes from the wire")
     eq(decodeError(v2(text: v2Text(override: ["showFewer": "  "]))), .text("showFewer"), "blank string")
     eq(decodeError(v2(text: v2Text(override: ["summary": ["ok", 2]]))), .text("summary"), "non-string summary part")
     var statuses = v2Text()["statuses"] as! [String: Any]

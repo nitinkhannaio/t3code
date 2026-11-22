@@ -143,9 +143,17 @@ final class CardHitView: NSView {
     private(set) var pressed = false { didSet { needsDisplay = true } }
     var expanded = false {
         didSet {
-            setAccessibilityLabel(expanded ? Self.expandedAccessibilityLabel : Self.collapsedAccessibilityLabel)
+            applyAccessibilityLabel()
             setAccessibilityExpanded(expanded)
         }
+    }
+    /// VoiceOver names in the app's language, from the card's copy.
+    var accessibilityLabels = (collapsed: CardHitView.collapsedAccessibilityLabel, expanded: CardHitView.expandedAccessibilityLabel) {
+        didSet { applyAccessibilityLabel() }
+    }
+
+    private func applyAccessibilityLabel() {
+        setAccessibilityLabel(expanded ? accessibilityLabels.expanded : accessibilityLabels.collapsed)
     }
     /// Raw pointer samples for the gate; the runner adds the fresh context. Phase name only for evidence logs.
     var onPointer: ((PointerSample) -> Void)?

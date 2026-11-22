@@ -163,6 +163,7 @@ final class Runner {
         stopAnimation()
         let plan = currentPlan()
         panel.update(plan)
+        if let text = live?.text { hitPanel?.hitView.accessibilityLabels = (text.expandLabel, text.collapseLabel) }
         hitPanel?.hitView.expanded = toggle.display.mode == .expanded
         applyArea()
         adaptGlass()

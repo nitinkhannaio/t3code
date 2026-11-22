@@ -1255,6 +1255,9 @@ export const DesktopLockScreenActivitySchema = Schema.Struct({
       LockScreenText,
     ).check(Schema.isMaxProperties(LOCK_SCREEN_SHOWN_ROW_COUNTS.length)),
     showFewer: LockScreenText,
+    /** VoiceOver names for the click-to-expand card while collapsed and while expanded. */
+    expandLabel: LockScreenText,
+    collapseLabel: LockScreenText,
     statuses: Schema.Struct({
       approval: LockScreenText,
       input: LockScreenText,

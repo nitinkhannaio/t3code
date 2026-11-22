@@ -29,6 +29,9 @@ struct CardText: Equatable {
     /// Overflow row text keyed by the number of items not shown.
     var more: [Int: String]
     var showFewer: String
+    /// VoiceOver names for the click-to-expand card while collapsed and while expanded.
+    var expandLabel: String
+    var collapseLabel: String
     var statuses: [SessionStatus: String]
     var duration: Durations
     /// Title fallback for a thread whose provider is unknown.
@@ -42,6 +45,7 @@ struct CardText: Equatable {
     static let englishStatuses = Dictionary(uniqueKeysWithValues: SessionStatus.allCases.map { ($0, $0.shortLabel) })
 
     static let english = CardText(summary: [], updated: "Updated {time}", more: [:], showFewer: "Show fewer",
+                                  expandLabel: "Show additional sessions", collapseLabel: "Hide additional sessions",
                                   statuses: englishStatuses, duration: Durations(), agent: "Agent")
 
     /// Fixture copy: English summary parts for `totals` and a "N more threads" line for each hidden count.

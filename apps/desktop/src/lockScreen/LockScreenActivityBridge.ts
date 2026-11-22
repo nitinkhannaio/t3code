@@ -56,6 +56,8 @@ function wireText(text: DesktopLockScreenActivity["text"], more: Record<string, 
     updated: clip(shown.updated),
     more: Object.fromEntries(Object.entries(more).map(([count, label]) => [count, clip(label)])),
     showFewer: clip(shown.showFewer),
+    expandLabel: clip(shown.expandLabel),
+    collapseLabel: clip(shown.collapseLabel),
     statuses: Object.fromEntries(
       Object.entries(shown.statuses).map(([status, label]) => [status, clip(label)]),
     ),

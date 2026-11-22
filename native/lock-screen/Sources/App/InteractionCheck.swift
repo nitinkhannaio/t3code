@@ -50,7 +50,10 @@ func interactionCheck() -> Int32 {
     check(hit.hitView.accessibilityRole() == .button && hit.hitView.accessibilityLabel() == CardHitView.collapsedAccessibilityLabel, "hit a11y collapsed")
     hit.hitView.expanded = true
     check(hit.hitView.accessibilityLabel() == CardHitView.expandedAccessibilityLabel && hit.hitView.isAccessibilityExpanded(), "hit a11y expanded")
+    hit.hitView.accessibilityLabels = (collapsed: "Weitere Sitzungen anzeigen", expanded: "Weitere Sitzungen ausblenden")
+    check(hit.hitView.accessibilityLabel() == "Weitere Sitzungen ausblenden", "hit a11y label follows the card's language")
     hit.hitView.expanded = false
+    check(hit.hitView.accessibilityLabel() == "Weitere Sitzungen anzeigen", "hit a11y collapsed label follows the card's language")
 
     // MARK: plans drawn by the view
     check(collapsed.disclosure == .collapsed && collapsed.shownRows == 4 && cardPanel.card.builtRowCount == 8, "collapsed plan: 4 shown of 8 built, right chevron")

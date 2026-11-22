@@ -286,6 +286,8 @@ private func v2Text(summary: [String], more: [Int: String], german: Bool) -> [St
         "updated": german ? "Aktualisiert um {time}" : "Updated {time}",
         "more": Dictionary(uniqueKeysWithValues: more.map { (String($0.key), $0.value) }),
         "showFewer": german ? "Weniger anzeigen" : "Show fewer",
+        "expandLabel": german ? "Weitere Sitzungen anzeigen" : "Show additional sessions",
+        "collapseLabel": german ? "Weitere Sitzungen ausblenden" : "Hide additional sessions",
         "statuses": statuses,
         "duration": german ? ["seconds": "{count} Sek.", "minutes": "{count} Min.", "hours": "{hours} Std. {minutes} Min."]
                            : ["seconds": "{count}s", "minutes": "{count}m", "hours": "{hours}h {minutes}m"],

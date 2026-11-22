@@ -177,7 +177,9 @@ enum LiveDecoder {
         let duration = try dictionary("duration")
         let english = CardText.english
         return CardText(summary: summary, updated: try template(object["updated"], "updated", needs: ["{time}"], fallback: english.updated),
-                        more: more, showFewer: try string(object["showFewer"], "showFewer"), statuses: statuses,
+                        more: more, showFewer: try string(object["showFewer"], "showFewer"),
+                        expandLabel: try string(object["expandLabel"], "expandLabel"),
+                        collapseLabel: try string(object["collapseLabel"], "collapseLabel"), statuses: statuses,
                         duration: CardText.Durations(
                             seconds: try template(duration["seconds"], "duration", needs: ["{count}"], fallback: english.duration.seconds),
                             minutes: try template(duration["minutes"], "duration", needs: ["{count}"], fallback: english.duration.minutes),

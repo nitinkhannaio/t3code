@@ -362,6 +362,8 @@ describe("lockScreenText", () => {
       updated: "Updated {time}",
       more: { "9": "9 more threads", "1": "1 more thread" },
       showFewer: "Show fewer",
+      expandLabel: "Show additional sessions",
+      collapseLabel: "Hide additional sessions",
       statuses: {
         approval: "Approval",
         input: "Input",

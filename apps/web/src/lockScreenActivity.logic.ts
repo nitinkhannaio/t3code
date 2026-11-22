@@ -159,6 +159,8 @@ export function lockScreenText(
     ]),
     more,
     showFewer: clip(resolve(msg("Show fewer"))),
+    expandLabel: clip(resolve(msg("Show additional sessions"))),
+    collapseLabel: clip(resolve(msg("Hide additional sessions"))),
     statuses: {
       approval: clip(resolve(msg("Approval"))),
       input: clip(resolve(msg("Input"))),

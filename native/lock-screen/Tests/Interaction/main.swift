@@ -21,6 +21,7 @@ func line(_ statuses: [String], extraAttention: Int = 0, extraWorking: Int = 0, 
     let english = CardText.english(totals: totals, hidden: hidden.values)
     let text: [String: Any] = [
         "summary": english.summary, "updated": english.updated, "showFewer": english.showFewer, "agent": english.agent,
+        "expandLabel": english.expandLabel, "collapseLabel": english.collapseLabel,
         "more": Dictionary(uniqueKeysWithValues: english.more.map { (String($0.key), $0.value) }),
         "statuses": Dictionary(uniqueKeysWithValues: english.statuses.map { ($0.key.rawValue, $0.value) }),
         "duration": ["seconds": english.duration.seconds, "minutes": english.duration.minutes, "hours": english.duration.hours],
@@ -181,7 +182,7 @@ do {
 do {
     let statuses = SessionStatus.allCases.map { "\"\($0.rawValue)\":\"\($0.shortLabel)\"" }.joined(separator: ",")
     let projects = (1...5).map { #"{"name":"P\#($0)","projectIcon":null,"attention":0,"attentionStatus":null,"working":1,"done":0}"# }
-    let text = #"{"summary":["5 in Arbeit"],"updated":"Aktualisiert {time}","more":{"1":"1 weiteres Projekt"},"showFewer":"Weniger anzeigen","statuses":{\#(statuses)},"duration":{"seconds":"{count}s","minutes":"{count}m","hours":"{hours}h {minutes}m"},"agent":"Agent"}"#
+    let text = #"{"summary":["5 in Arbeit"],"updated":"Aktualisiert {time}","more":{"1":"1 weiteres Projekt"},"showFewer":"Weniger anzeigen","statuses":{\#(statuses)},"duration":{"seconds":"{count}s","minutes":"{count}m","hours":"{hours}h {minutes}m"},"agent":"Agent","expandLabel":"Weitere Sitzungen anzeigen","collapseLabel":"Weitere Sitzungen ausblenden"}"#
     let p = snap(#"{"asOf":"2026-11-22T04:07:27Z","mode":"projects","counts":{"attention":0,"working":5,"waiting":0,"done":0},"rows":[],"projects":[\#(projects.joined(separator: ","))],"hidden":{"4":1},"text":\#(text)}"#)
     var d = CardDisplayState(capacity: 8)
     d.snapshot(p)

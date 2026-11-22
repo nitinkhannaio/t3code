@@ -66,6 +66,8 @@ const TEXT: DesktopLockScreenActivity["text"] = {
   updated: "Updated {time}",
   more: { "1": "1 more thread", "2": "2 more threads" },
   showFewer: "Show fewer",
+  expandLabel: "Show additional sessions",
+  collapseLabel: "Hide additional sessions",
   statuses: {
     approval: "Approval",
     input: "Input",
