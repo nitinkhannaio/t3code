@@ -423,6 +423,10 @@
       "types": "./src/desktopAppControl.ts",
       "import": "./src/desktopAppControl.ts"
     },
+    "./desktopPreview": {
+      "types": "./src/desktopPreview.ts",
+      "import": "./src/desktopPreview.ts"
+    },
     "./thirdPartyLicenses": {
       "types": "./src/thirdPartyLicenses.ts",
       "import": "./src/thirdPartyLicenses.ts"

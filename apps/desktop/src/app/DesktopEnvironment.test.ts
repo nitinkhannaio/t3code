@@ -38,6 +38,22 @@ const makeEnvironment = (
 ) => DesktopEnvironment.DesktopEnvironment.pipe(Effect.provide(layerEnvironment(overrides, env)));
 
 describe("DesktopEnvironment", () => {
+  it.effect(
+    "gives the lock-screen preview its own profile and data, even with a live T3 home configured",
+    () =>
+      Effect.gen(function* () {
+        const environment = yield* makeEnvironment(
+          { appVersion: "0.1.12-preview.20261122.2.lockscreen", isPackaged: true },
+          { T3CODE_HOME: "/Users/alice/.t3" },
+        );
+        assert.equal(environment.displayName, "T3 Lock Screen Preview");
+        assert.equal(environment.baseDir, "/Users/alice/.t3-lock-screen-preview");
+        assert.equal(environment.stateDir, "/Users/alice/.t3-lock-screen-preview/userdata");
+        assert.equal(environment.appDataDirectory, "/Users/alice/.t3-lock-screen-preview/electron");
+        assert.isFalse(environment.defaultDesktopSettings.localEnvironmentEnabled);
+      }),
+  );
+
   it.effect("uses the packaged Windows server sidecar as the backend root", () =>
     Effect.gen(function* () {
       const environment = yield* makeEnvironment({

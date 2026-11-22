@@ -648,6 +648,28 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }),
   );
 
+  it.effect(
+    "gives the lock-screen preview a separate macOS identity without update or URL handlers",
+    () =>
+      Effect.gen(function* () {
+        const preview = yield* createBuildConfig(
+          "mac",
+          "dir",
+          "0.1.12-preview.20261122.2.lockscreen",
+          false,
+          false,
+          undefined,
+          undefined,
+        );
+        assert.equal(preview.appId, "com.t3tools.t3code.lockscreen-preview");
+        assert.equal(preview.productName, "T3 Lock Screen Preview");
+        assert.nestedPropertyVal(preview, "extraMetadata.name", "t3code-lockscreen-preview");
+        assert.isNull(preview.publish);
+        assert.nestedPropertyVal(preview, "mac.protocols.length", 0);
+        assert.nestedPropertyVal(preview, "mac.extendInfo.CFBundleDocumentTypes.length", 0);
+      }),
+  );
+
   // pnpm writes "set this to true or false" placeholders into allowBuilds when a
   // tarball changes. pnpm ignores them, but the release build decode rejects them.
   it.effect("decodes the repo allowBuilds and every file: tarball it names exists", () =>

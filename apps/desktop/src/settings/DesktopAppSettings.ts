@@ -26,6 +26,7 @@ import {
 } from "../linuxSecretStorage.ts";
 import { desktopUpdateChannelOf } from "@t3tools/shared/cliRelease";
 import { isValidDistroName } from "../wsl/wslPathParsing.ts";
+import { isLockScreenPreviewVersion } from "@t3tools/shared/desktopPreview";
 
 export interface DesktopSettings {
   readonly localEnvironmentEnabled: boolean;
@@ -190,6 +191,7 @@ export class DesktopAppSettings extends Context.Service<
 export function resolveDefaultDesktopSettings(appVersion: string): DesktopSettings {
   return {
     ...DEFAULT_DESKTOP_SETTINGS,
+    localEnvironmentEnabled: !isLockScreenPreviewVersion(appVersion),
     updateChannel: desktopUpdateChannelOf(appVersion),
   };
 }
@@ -225,7 +227,8 @@ function normalizeDesktopSettingsDocument(
     (parsed.wslBackendEnabled === undefined && parsed.wslMode === "wsl");
 
   return {
-    localEnvironmentEnabled: parsed.localEnvironmentEnabled !== false,
+    localEnvironmentEnabled:
+      parsed.localEnvironmentEnabled ?? defaultSettings.localEnvironmentEnabled,
     linuxPasswordStore: normalizeLinuxPasswordStorePreference(parsed.linuxPasswordStore),
     mainWindowBounds,
     mainWindowMaximized: mainWindowBounds !== null && parsed.mainWindowMaximized === true,

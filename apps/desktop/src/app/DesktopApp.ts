@@ -39,6 +39,7 @@ import * as DesktopStartupRecovery from "./DesktopStartupRecovery.ts";
 import * as DesktopState from "./DesktopState.ts";
 import * as DesktopRemoteUpdates from "../updates/DesktopRemoteUpdates.ts";
 import * as DesktopUpdates from "../updates/DesktopUpdates.ts";
+import { isLockScreenPreviewVersion } from "@t3tools/shared/desktopPreview";
 import * as DesktopSnapShot from "../snapShot/DesktopSnapShot.ts";
 import * as DesktopWslBackend from "../wsl/DesktopWslBackend.ts";
 import * as DesktopRendererHistory from "../telemetry/DesktopRendererHistory.ts";
@@ -320,23 +321,26 @@ const bootstrap = Effect.fn("desktop.bootstrap")(function* (backendStarted: bool
     return;
   }
 
-  yield* snapShot.initialize;
-  // Only the user's own login shell PATH shows every t3 a new terminal runs; a fresh install has
-  // no cached one. Without it, the command is left to Settings.
-  const installCli = (yield* DesktopCliCommand.DesktopCliCommand).installOnFirstLaunch;
-  yield* Effect.forkScoped(
-    (yield* DesktopShellEnvironment.DesktopShellEnvironment).awaitUserShellDiscovery.pipe(
-      Effect.flatMap((found) =>
-        found || environment.platform === "win32"
-          ? installCli
-          : logBootstrapInfo("skipped installing the t3 command without the shell PATH"),
+  const lockScreenPreview = isLockScreenPreviewVersion(environment.appVersion);
+  if (!lockScreenPreview) {
+    yield* snapShot.initialize;
+    // Only the user's own login shell PATH shows every t3 a new terminal runs; a fresh install has
+    // no cached one. Without it, the command is left to Settings.
+    const installCli = (yield* DesktopCliCommand.DesktopCliCommand).installOnFirstLaunch;
+    yield* Effect.forkScoped(
+      (yield* DesktopShellEnvironment.DesktopShellEnvironment).awaitUserShellDiscovery.pipe(
+        Effect.flatMap((found) =>
+          found || environment.platform === "win32"
+            ? installCli
+            : logBootstrapInfo("skipped installing the t3 command without the shell PATH"),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   if (!settings.localEnvironmentEnabled) {
     // The backend config refreshes the launcher when the local environment runs; an update may move the app.
-    yield* DesktopCliShim.install;
+    if (!lockScreenPreview) yield* DesktopCliShim.install;
     if (!(yield* Ref.get(state.quitting))) {
       yield* desktopWindow.createMainIfBackendReady;
     }

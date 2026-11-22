@@ -16,6 +16,7 @@ import {
 } from "@electron/asar";
 
 import { fromYaml } from "@t3tools/shared/schemaYaml";
+import { isLockScreenPreviewVersion } from "@t3tools/shared/desktopPreview";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import { clerkFrontendApiHostnameFromPublishableKey } from "@t3tools/shared/relayAuth";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
@@ -2767,7 +2768,11 @@ export function resolveDesktopUpdateChannel(version: string): "latest" | "nightl
 }
 
 export function isDesktopPreviewVersion(version: string): boolean {
-  return /-pr\./.test(version) || /-preview\.\d{8}\.\d+$/.test(version);
+  return (
+    isLockScreenPreviewVersion(version) ||
+    /-pr\./.test(version) ||
+    /-preview\.\d{8}\.\d+$/.test(version)
+  );
 }
 
 export function resolveDesktopWebAssetBrand(version: string): WebAssetBrand {
@@ -2806,6 +2811,7 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 }
 
 export function resolveDesktopProductName(version: string): string {
+  if (isLockScreenPreviewVersion(version)) return "T3 Lock Screen Preview";
   return resolveDesktopUpdateChannel(version) === "nightly"
     ? "T3 Code (Nightly)"
     : (desktopPackageJson.productName ?? "T3 Code");
@@ -2828,10 +2834,13 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   arch?: typeof BuildArch.Type,
   lockScreenActivity = false,
 ) {
+  const lockScreenPreview = platform === "mac" && isLockScreenPreviewVersion(version);
   const buildConfig: Record<string, unknown> = {
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
-    appId: DESKTOP_APP_ID,
+    appId: lockScreenPreview ? `${DESKTOP_APP_ID}.lockscreen-preview` : DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
+    // Electron derives its macOS Safe Storage service name from the embedded manifest.
+    ...(lockScreenPreview ? { extraMetadata: { name: "t3code-lockscreen-preview" } } : {}),
     artifactName: "T3-Code-${version}-${arch}.${ext}",
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
@@ -2904,26 +2913,30 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
           "T3 Code transcribes your dictation on this Mac when you choose Apple Speech.",
         // macOS lists an app under Default web browser only when it opens web
         // pages as documents as well as http and https links (see protocols).
-        CFBundleDocumentTypes: [
-          {
-            CFBundleTypeName: "Web page",
-            CFBundleTypeRole: "Viewer",
-            LSHandlerRank: "Alternate",
-            LSItemContentTypes: ["public.html", "public.xhtml"],
-          },
-        ],
+        CFBundleDocumentTypes: lockScreenPreview
+          ? []
+          : [
+              {
+                CFBundleTypeName: "Web page",
+                CFBundleTypeRole: "Viewer",
+                LSHandlerRank: "Alternate",
+                LSItemContentTypes: ["public.html", "public.xhtml"],
+              },
+            ],
       },
-      protocols: [
-        {
-          name: "T3 Code",
-          schemes: ["t3code", "t3code-dev"],
-        },
-        {
-          name: "Web site URL",
-          schemes: ["http", "https"],
-          role: "Viewer",
-        },
-      ],
+      protocols: lockScreenPreview
+        ? []
+        : [
+            {
+              name: "T3 Code",
+              schemes: ["t3code", "t3code-dev"],
+            },
+            {
+              name: "Web site URL",
+              schemes: ["http", "https"],
+              role: "Viewer",
+            },
+          ],
       ...(signed ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") } : {}),
       ...(macPasskeySigning
         ? {
