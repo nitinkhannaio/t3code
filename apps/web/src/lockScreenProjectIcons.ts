@@ -7,7 +7,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 
 import { deriveProjectIdentity } from "./projectIdentity";
-import { PROJECT_ICON_COLORS, projectIconColorClassName } from "./projectIconColors";
+import { PROJECT_ICON_COLORS } from "./projectIconColors";
 
 /** What `ProjectFavicon` would draw for a project, reduced to what the lock screen can show. */
 export type LockScreenIconSource =
@@ -47,7 +47,7 @@ function escapeXml(value: string): string {
   );
 }
 
-function computedColor(className: string, property: "color" | "backgroundColor"): string {
+function swatchColor(className: string): string {
   const host = document.createElement("div");
   host.className = "dark";
   host.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;contain:strict";
@@ -56,23 +56,18 @@ function computedColor(className: string, property: "color" | "backgroundColor")
   host.append(probe);
   document.body.append(host);
   try {
-    return getComputedStyle(probe)[property];
+    return getComputedStyle(probe).backgroundColor;
   } finally {
     host.remove();
   }
 }
 
-// The card's glass turns light or dark with the wallpaper after the icon is drawn, so icons take
-// the dark-theme shade one step deeper, which reads on both. The app's own theme never matters.
-function resolveColor(className: string): string {
-  return `color-mix(in oklab, ${computedColor(className, "color")} 80%, black)`;
-}
-
-// A translucent tint washes out on light glass and bright wallpapers, so monograms sit on a
-// solid tile of the project's swatch, deepened enough for white letters.
-function monogramTileColor(color: ProjectIconColor): string {
+// The card's glass turns light or dark with the wallpaper after the icon is drawn, and a tint or a
+// coloured glyph washes out on one of them, so drawn icons are white on a solid tile of the
+// project's swatch, deepened enough for white. The app's own theme never matters.
+function tileColor(color: ProjectIconColor): string {
   const swatch = PROJECT_ICON_COLORS.find((entry) => entry.value === color)?.swatchClassName;
-  return `color-mix(in oklab, ${computedColor(swatch ?? "bg-gray-500", "backgroundColor")} 72%, black)`;
+  return `color-mix(in oklab, ${swatchColor(swatch ?? "bg-gray-500")} 72%, black)`;
 }
 
 function drawingSurface() {
@@ -109,7 +104,7 @@ function monogramSvg(text: string, color: ProjectIconColor): string {
   const fontFamily =
     getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim() ||
     "ui-monospace, monospace";
-  const style = escapeXml(`color: ${monogramTileColor(color)}`);
+  const style = escapeXml(`color: ${tileColor(color)}`);
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 16 16" style="${style}">`,
     `<rect width="16" height="16" rx="4" fill="currentColor"/>`,
@@ -119,17 +114,27 @@ function monogramSvg(text: string, color: ProjectIconColor): string {
   ].join("");
 }
 
-function iconSvg(icon: ComponentType, color: string): string {
+const GLYPH = 22;
+
+function tiledIconSvg(icon: ComponentType, color: ProjectIconColor): string {
   const host = document.createElement("div");
   const root = createRoot(host);
   try {
     flushSync(() => root.render(createElement(icon)));
     const svg = host.querySelector("svg");
     if (svg === null) throw new Error("Icon did not render.");
-    svg.setAttribute("width", String(SIZE));
-    svg.setAttribute("height", String(SIZE));
-    svg.style.color = color;
-    return new XMLSerializer().serializeToString(svg);
+    const inset = String((SIZE - GLYPH) / 2);
+    svg.setAttribute("x", inset);
+    svg.setAttribute("y", inset);
+    svg.setAttribute("width", String(GLYPH));
+    svg.setAttribute("height", String(GLYPH));
+    svg.style.color = "#fff";
+    const glyph = new XMLSerializer().serializeToString(svg);
+    const style = escapeXml(`color: ${tileColor(color)}`);
+    return [
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="${style}">`,
+      `<rect width="${SIZE}" height="${SIZE}" rx="${RADIUS}" fill="currentColor"/>${glyph}</svg>`,
+    ].join("");
   } finally {
     root.unmount();
   }
@@ -171,14 +176,9 @@ export async function renderLockScreenIcon(source: LockScreenIconSource): Promis
     case "emoji":
       return drawEmoji(source.emoji);
     case "lucide":
-      return drawSvg(
-        iconSvg(
-          await lucideIcon(source.name),
-          resolveColor(projectIconColorClassName(source.color)),
-        ),
-      );
+      return drawSvg(tiledIconSvg(await lucideIcon(source.name), source.color));
     case "folder":
-      return drawSvg(iconSvg(FolderCodeIcon, resolveColor("text-icon-muted")));
+      return drawSvg(tiledIconSvg(FolderCodeIcon, "gray"));
     case "image":
       // A favicon that will not load, or that would taint the canvas, shows its fallback, as in the app.
       return drawImage(source.src).catch(() => renderLockScreenIcon(source.fallback));
