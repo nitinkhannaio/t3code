@@ -189,7 +189,7 @@ describe("makeLockScreenActivityBridge", () => {
     ]);
   });
 
-  it("holds the card until lock and clears it on unlock", () => {
+  it("holds the card until lock, clears it on unlock, and never replays it on the next lock", () => {
     const harness = setup();
     harness.bridge.configure(ON);
     harness.bridge.publish(OWNER, card("input"));
@@ -197,10 +197,12 @@ describe("makeLockScreenActivityBridge", () => {
     harness.lock(true);
     harness.lock(false);
     harness.lock(true);
+    expect(harness.parsed().map((line) => line?.rows[0].status ?? null)).toEqual(["input", null]);
+    harness.bridge.publish(OWNER, card("approval"));
     expect(harness.parsed().map((line) => line?.rows[0].status ?? null)).toEqual([
       "input",
       null,
-      "input",
+      "approval",
     ]);
   });
 
@@ -227,6 +229,7 @@ describe("makeLockScreenActivityBridge", () => {
     harness.lock(false);
     expect(harness.helpers).toHaveLength(2);
     harness.lock(true);
+    harness.bridge.publish(OWNER, card("approval"));
     expect(harness.parsed().at(-1).rows[0].status).toBe("approval");
   });
 

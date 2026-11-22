@@ -288,7 +288,11 @@ export function makeLockScreenActivityBridge(
       if (justEnabled) requestCurrentCard?.();
     },
     setLocked: (next: boolean) => {
-      if (!next && locked) restarted = false;
+      if (!next && locked) {
+        restarted = false;
+        // The next lock waits for a fresh card; a stalled renderer must not replay this one.
+        latest = null;
+      }
       locked = next;
       sync();
     },
