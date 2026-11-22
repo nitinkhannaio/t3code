@@ -154,3 +154,10 @@ export const COMPLETE_LEGACY_LOCAL_STORAGE_CHANNEL = "desktop:complete-legacy-lo
 export const RESTART_AUDIO_SERVICE_CHANNEL = "desktop:restart-audio-service";
 
 export const START_FILE_DRAG_CHANNEL = "desktop:start-file-drag";
+
+export const GET_LOCK_SCREEN_ACTIVITY_AVAILABLE_CHANNEL =
+  "desktop:get-lock-screen-activity-available";
+export const SET_LOCK_SCREEN_ACTIVITY_CHANNEL = "desktop:set-lock-screen-activity";
+export const LOCK_SCREEN_ACTIVITY_REPUBLISH_CHANNEL = "desktop:lock-screen-activity-republish";
+export const WATCH_LOCK_SCREEN_LOCKED_CHANNEL = "desktop:watch-lock-screen-locked";
+export const LOCK_SCREEN_ACTIVITY_LOCKED_CHANNEL = "desktop:lock-screen-activity-locked";

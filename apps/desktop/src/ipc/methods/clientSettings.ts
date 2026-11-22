@@ -4,6 +4,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import { applyLanguage } from "../../i18n/messages.ts";
+import * as DesktopLockScreenActivity from "../../lockScreen/DesktopLockScreenActivity.ts";
 import * as DesktopClientSettings from "../../settings/DesktopClientSettings.ts";
 import * as DesktopSnapShot from "../../snapShot/DesktopSnapShot.ts";
 import * as IpcChannels from "../channels.ts";
@@ -23,9 +24,14 @@ export const setClientSettings = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.SET_CLIENT_SETTINGS_CHANNEL,
   payload: ClientSettingsSchema,
   result: Schema.Void,
-  handler: Effect.fn("desktop.ipc.clientSettings.set")(function* (settings) {
+  handler: Effect.fn("desktop.ipc.clientSettings.set")(function* (settings, event) {
     const clientSettings = yield* DesktopClientSettings.DesktopClientSettings;
     const snapShot = yield* DesktopSnapShot.DesktopSnapShot;
+    // Before the write, so turning the card off clears it even if saving fails.
+    yield* (yield* DesktopLockScreenActivity.DesktopLockScreenActivity).configure(
+      settings,
+      event?.sender.id,
+    );
     yield* clientSettings.set(settings);
     yield* snapShot.configure(settings);
     yield* applyLanguage(settings.language);

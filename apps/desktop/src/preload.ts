@@ -125,6 +125,28 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.on(IpcChannels.SET_NOTIFICATION_BADGE_CHANNEL, handler);
     return () => ipcRenderer.removeListener(IpcChannels.SET_NOTIFICATION_BADGE_CHANNEL, handler);
   },
+  getLockScreenActivityAvailable: () =>
+    ipcRenderer.sendSync(IpcChannels.GET_LOCK_SCREEN_ACTIVITY_AVAILABLE_CHANNEL) === true,
+  setLockScreenActivity: (activity) =>
+    ipcRenderer.invoke(IpcChannels.SET_LOCK_SCREEN_ACTIVITY_CHANNEL, activity),
+  onLockScreenActivityRepublish: (listener) => {
+    const handler = () => listener();
+    ipcRenderer.on(IpcChannels.LOCK_SCREEN_ACTIVITY_REPUBLISH_CHANNEL, handler);
+    return () =>
+      ipcRenderer.removeListener(IpcChannels.LOCK_SCREEN_ACTIVITY_REPUBLISH_CHANNEL, handler);
+  },
+  onLockScreenLockedChange: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, locked: unknown) =>
+      listener(locked === true);
+    ipcRenderer.on(IpcChannels.LOCK_SCREEN_ACTIVITY_LOCKED_CHANNEL, handler);
+    // Changes after this reply arrive after it, so the current state is never overwritten by an older one.
+    void ipcRenderer.invoke(IpcChannels.WATCH_LOCK_SCREEN_LOCKED_CHANNEL).then(
+      (locked: unknown) => listener(locked === true),
+      () => undefined,
+    );
+    return () =>
+      ipcRenderer.removeListener(IpcChannels.LOCK_SCREEN_ACTIVITY_LOCKED_CHANNEL, handler);
+  },
   onTrackpadScrollBegin: (listener) => {
     const handler = () => listener();
     ipcRenderer.on(IpcChannels.TRACKPAD_SCROLL_BEGIN_CHANNEL, handler);
