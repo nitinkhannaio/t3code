@@ -123,12 +123,18 @@ final class Runner {
     /// the card and its click window where that placement puts them. Never moves a window.
     private func rearmIfLayoutUnchanged() {
         guard layoutPending, machine.shown, !machine.finished, let surface, let screen = NSScreen.screens.first,
-              CardSurface.make(screen: screen.frame) == surface else { return }
-        let expected = CardCoordinates.screenToCG(surface.panel, primaryHeight: screen.frame.height)
-        guard windowServerFrame(panel) == expected, hitPanel.map({ windowServerFrame($0) == expected }) ?? true else { return }
+              CardSurface.make(screen: screen.frame) == surface, windowsWhereExpected else { return }
         layoutPending = false
         log("screens settled with the card where it was: expand-on-click allowed again")
         reevaluatePointer()
+    }
+
+    /// Where the window server has the windows, not where the model put them: on the lock screen it may not have
+    /// followed a setFrame. A click window not yet in the lock space has no frame to read; it opens at its own.
+    private var windowsWhereExpected: Bool {
+        guard let surface, let screen = NSScreen.screens.first else { return false }
+        let expected = CardCoordinates.screenToCG(surface.panel, primaryHeight: screen.frame.height)
+        return windowServerFrame(panel) == expected && (hitPanel.flatMap(windowServerFrame).map { $0 == expected } ?? true)
     }
 
     private func windowServerFrame(_ window: NSWindow) -> CGRect? {
@@ -306,7 +312,7 @@ final class Runner {
             cardShown: cardShown ?? (machine.shown && panel.isVisible),
             privateAttached: machine.attached && backend.hasSpace,
             occlusionVisible: panel.occlusionState.contains(.visible),
-            geometryOK: !layoutPending && surface != nil && areaSafe,
+            geometryOK: !layoutPending && surface != nil && areaSafe && windowsWhereExpected,
             capacity: toggle.display.capacity,
             rowCount: live?.itemCount ?? 0,
             reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
