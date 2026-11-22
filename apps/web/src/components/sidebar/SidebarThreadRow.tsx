@@ -15,6 +15,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   canSnooze,
   hasQueuedTurnStart,
+  hasUnseenCompletion,
   QUEUED_TURN_START_GRACE_MS,
 } from "@t3tools/client-runtime/state/thread-settled";
 import { formatDiffCount } from "@t3tools/client-runtime/diff-count";
@@ -91,7 +92,6 @@ import { textDirection } from "~/textDirection";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import {
   animateSidebarLayoutChanges,
-  hasUnseenCompletion,
   resolveSidebarRowAccessibility,
   type SidebarDropVerb,
   resolveSidebarRowStatus,

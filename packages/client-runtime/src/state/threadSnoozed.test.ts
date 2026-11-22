@@ -10,6 +10,7 @@ import {
   canSnooze,
   effectiveSnoozed,
   hasQueuedTurnStart,
+  hasUnseenCompletion,
   hasUnseenRunFailure,
   pickSnoozePreset,
   resolveSnoozePresets,
@@ -238,6 +239,35 @@ describe("hasUnseenRunFailure", () => {
     expect(
       hasUnseenRunFailure({ latestRun: undated, lastVisitedAt: "2026-04-10T09:00:30.000Z" }),
     ).toBe(true);
+  });
+});
+
+describe("hasUnseenCompletion", () => {
+  it("is unread only for a run that finished after the last visit, never for a stopped one", () => {
+    const run = {
+      runId: RunId.make("run-completed"),
+      status: "completed" as const,
+      requestedAt: "2026-04-10T09:00:00.000Z",
+      startedAt: "2026-04-10T09:01:00.000Z",
+      completedAt: "2026-04-10T09:05:00.000Z",
+      assistantMessageId: null,
+    };
+
+    expect(hasUnseenCompletion({ latestRun: run, lastVisitedAt: "2026-04-10T09:04:00.000Z" })).toBe(
+      true,
+    );
+    expect(hasUnseenCompletion({ latestRun: run, lastVisitedAt: "2026-04-10T09:06:00.000Z" })).toBe(
+      false,
+    );
+    expect(hasUnseenCompletion({ latestRun: run, lastVisitedAt: null })).toBe(false);
+    for (const status of ["interrupted", "cancelled"] as const) {
+      expect(
+        hasUnseenCompletion({
+          latestRun: { ...run, status },
+          lastVisitedAt: "2026-04-10T09:04:00.000Z",
+        }),
+      ).toBe(false);
+    }
   });
 });
 

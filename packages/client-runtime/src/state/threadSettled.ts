@@ -479,3 +479,25 @@ export function hasUnseenRunFailure(
   if (Number.isNaN(failedAtMs) || Number.isNaN(lastVisitedAtMs)) return true;
   return failedAtMs > lastVisitedAtMs;
 }
+
+/**
+ * Whether the latest run finished after the user last saw the thread, which is when it shows as
+ * Done. A stopped run is not a completion, and a thread with no visit mark is never unread.
+ */
+export function hasUnseenCompletion(
+  thread: Pick<EnvironmentThreadShell, "latestRun"> & {
+    readonly lastVisitedAt?: string | null | undefined;
+  },
+): boolean {
+  if (!thread.latestRun?.completedAt) return false;
+  if (thread.latestRun.status === "interrupted" || thread.latestRun.status === "cancelled") {
+    return false;
+  }
+  const completedAt = Date.parse(thread.latestRun.completedAt);
+  if (Number.isNaN(completedAt)) return false;
+  if (!thread.lastVisitedAt) return false;
+
+  const lastVisitedAt = Date.parse(thread.lastVisitedAt);
+  if (Number.isNaN(lastVisitedAt)) return true;
+  return completedAt > lastVisitedAt;
+}

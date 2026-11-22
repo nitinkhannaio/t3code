@@ -1,4 +1,5 @@
 import { presentThreadShell } from "@t3tools/client-runtime/state/models";
+import { hasUnseenCompletion } from "@t3tools/client-runtime/state/thread-settled";
 import { threadKey } from "@t3tools/client-runtime/state/entities";
 import { isThreadWorking as isSidebarThreadWorking } from "@t3tools/client-runtime/state/thread-inbox";
 import * as DateTime from "effect/DateTime";
@@ -11,7 +12,6 @@ import {
   resolveScopedNewThreadProjectRef,
   deleteSelectedThreadEntries,
   getFallbackThreadIdAfterDelete,
-  hasUnseenCompletion,
   orderItemsByPreferredIds,
   pinOrderKeyBetween,
   resolveSidebarSweepKeys,
@@ -370,7 +370,6 @@ describe("resolveSidebarRowStatus", () => {
         latestRun: { ...makeLatestRun(), status },
         lastVisitedAt: "2026-03-09T10:01:00.000Z",
       };
-      expect(hasUnseenCompletion(stopped)).toBe(false);
       expect(resolveThreadStatusPill({ thread: stopped })).toBeNull();
     }
   });
