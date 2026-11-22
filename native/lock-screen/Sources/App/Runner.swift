@@ -105,16 +105,35 @@ final class Runner {
     }
 
     /// Display configuration changed. Hidden: re-place now. Shown: disarm (geometry is stale) and re-place on hide;
-    /// windows are never moved while locked (see CardHitPanel).
+    /// windows are never moved while locked (see CardHitPanel). A lid close or monitor plug usually leaves the main
+    /// screen as it was, so once the displays settle, clicks come back if nothing about the card moved.
     private func screensChanged() {
         wallpaper.invalidate()
         if machine.shown {
             layoutPending = true
-            log("screen parameters changed while shown: expand-on-click disarmed until the card hides")
+            log("screen parameters changed while shown: expand-on-click disarmed until the layout is unchanged or the card hides")
             reevaluatePointer()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in self?.rearmIfLayoutUnchanged() }
         } else {
             relayout()
         }
+    }
+
+    /// Clears a pending layout only when the main screen gives the same placement and the window server shows the
+    /// card where that placement puts it. Never moves a window.
+    private func rearmIfLayoutUnchanged() {
+        guard layoutPending, machine.shown, !machine.finished, let surface, let screen = NSScreen.screens.first,
+              CardSurface.make(screen: screen.frame) == surface,
+              windowServerFrame(panel) == CardCoordinates.screenToCG(surface.panel, primaryHeight: screen.frame.height) else { return }
+        layoutPending = false
+        log("screens settled with the card where it was: expand-on-click allowed again")
+        reevaluatePointer()
+    }
+
+    private func windowServerFrame(_ window: NSWindow) -> CGRect? {
+        let info = (CGWindowListCopyWindowInfo([.optionIncludingWindow], CGWindowID(window.windowNumber)) as? [[String: Any]])?.first
+        guard let bounds = info?[kCGWindowBounds as String] as? NSDictionary else { return nil }
+        return CGRect(dictionaryRepresentation: bounds as CFDictionary)
     }
 
     private func relayout() {
