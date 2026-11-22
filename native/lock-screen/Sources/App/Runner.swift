@@ -119,12 +119,13 @@ final class Runner {
         }
     }
 
-    /// Clears a pending layout only when the main screen gives the same placement and the window server shows the
-    /// card where that placement puts it. Never moves a window.
+    /// Clears a pending layout only when the main screen gives the same placement and the window server shows both
+    /// the card and its click window where that placement puts them. Never moves a window.
     private func rearmIfLayoutUnchanged() {
         guard layoutPending, machine.shown, !machine.finished, let surface, let screen = NSScreen.screens.first,
-              CardSurface.make(screen: screen.frame) == surface,
-              windowServerFrame(panel) == CardCoordinates.screenToCG(surface.panel, primaryHeight: screen.frame.height) else { return }
+              CardSurface.make(screen: screen.frame) == surface else { return }
+        let expected = CardCoordinates.screenToCG(surface.panel, primaryHeight: screen.frame.height)
+        guard windowServerFrame(panel) == expected, hitPanel.map({ windowServerFrame($0) == expected }) ?? true else { return }
         layoutPending = false
         log("screens settled with the card where it was: expand-on-click allowed again")
         reevaluatePointer()
