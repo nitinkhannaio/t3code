@@ -14,6 +14,7 @@ import {
   createAllEnvironmentProjectSnapshotsReadyAtom,
   expectsPrimaryEnvironment,
   environmentShell,
+  liveShellEnvironmentIdsAtom,
 } from "./shell";
 import { environmentCatalog } from "../connection/catalog";
 import { defaultProjectFallbackReadyAtom } from "./projects";
@@ -154,6 +155,29 @@ it("expects a primary environment only on desktops with the local environment en
   };
   expect(desktop(true)).toBe(true);
   expect(desktop(false)).toBe(false);
+});
+
+it("includes live connected environments even when the primary shell is empty", () => {
+  const offline = EnvironmentId.make("offline");
+  const disabled = EnvironmentId.make("disabled");
+  const catalog = catalogState([LOCAL, REMOTE, offline, disabled]);
+  const entries = new Map(catalog.entries);
+  entries.set(disabled, { ...entries.get(disabled)!, enabled: false });
+
+  const registry = AtomRegistry.make({
+    initialValues: [
+      [environmentCatalog.catalogValueAtom, { ...catalog, entries }],
+      [environmentShell.statusAtom(LOCAL), "empty"],
+      [environmentShell.statusAtom(REMOTE), "live"],
+      [environmentShell.statusAtom(offline), "cached"],
+      [environmentShell.statusAtom(disabled), "live"],
+    ],
+  });
+  try {
+    expect(registry.get(liveShellEnvironmentIdsAtom)).toEqual(new Set([REMOTE]));
+  } finally {
+    registry.dispose();
+  }
 });
 
 it.each([undefined, "", "Server update required"])(

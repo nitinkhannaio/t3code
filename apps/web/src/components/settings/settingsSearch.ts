@@ -1,5 +1,5 @@
 import { HOSTED_APP_CHANNEL } from "~/branding";
-import { isElectron } from "~/env";
+import { isElectron, isLockScreenActivityAvailable } from "~/env";
 import { isMacPlatform, isWindowsPlatform, normalizeSearchText } from "~/lib/utils";
 import { STATIC_KEYBINDING_COMMANDS, type KeybindingCommand } from "@t3tools/contracts";
 import type { EnvironmentId } from "@t3tools/contracts";
@@ -73,6 +73,7 @@ export interface SettingsSearchItem {
   readonly peerLinksOnly?: boolean;
   readonly fastWorktreeCheckoutOnly?: boolean;
   readonly textGeneratorsOnly?: boolean;
+  readonly lockScreenActivityOnly?: boolean;
   readonly secondary?: boolean;
   readonly requiresThreadAutoSettlement?: boolean;
 }
@@ -572,6 +573,22 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [
       msg("beta alpha simlock callstack simulator emulator ios android pool lease gateway"),
     ],
+  },
+  {
+    id: "lock-screen-activity",
+    title: msg("Lock screen sessions"),
+    to: "/settings/labs",
+    lockScreenActivityOnly: true,
+    searchTerms: [msg("beta lock screen macos locked working approval input status card")],
+  },
+  {
+    id: "lock-screen-activity-titles",
+    title: msg("Show thread titles on the lock screen"),
+    to: "/settings/labs",
+    // Shown inside the lock screen row only while it is on, so search lands on the parent.
+    targetId: "lock-screen-activity",
+    lockScreenActivityOnly: true,
+    searchTerms: [msg("beta lock screen titles privacy names")],
   },
   {
     id: "worktree-fast-checkout",
@@ -1671,6 +1688,7 @@ export function settingsForThisPlatform(
       (isElectron || item.desktopOnly !== true) &&
       (!item.releaseChannelOnly || isElectron || HOSTED_APP_CHANNEL !== null) &&
       (!item.macOnly || isMacPlatform(platform)) &&
+      (!item.lockScreenActivityOnly || isLockScreenActivityAvailable) &&
       (!item.windowsOnly || isWindowsPlatform(platform)),
   );
 }

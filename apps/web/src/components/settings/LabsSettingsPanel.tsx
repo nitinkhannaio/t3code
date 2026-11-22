@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { T, useGT, useMessages } from "gt-react";
 
 import { hasCloudPublicConfig } from "~/cloud/publicConfig";
+import { isLockScreenActivityAvailable } from "~/env";
 import { useT3ConnectAuthPrompt } from "../clerk/useT3ConnectAuthPrompt";
 import { Button } from "../ui/button";
 import { Switch } from "../ui/switch";
@@ -27,6 +28,7 @@ export function LabsSettingsPanel() {
         <PromptSuggestionsRow />
         <SimlockHostsRow />
         <FastWorktreeCheckoutRow />
+        {isLockScreenActivityAvailable ? <LockScreenActivityRow /> : null}
       </SettingsSection>
     </SettingsPageContainer>
   );
@@ -289,5 +291,50 @@ function FastWorktreeCheckoutRow() {
         />
       }
     />
+  );
+}
+
+function LockScreenActivityRow() {
+  const searchableSetting = useSearchableSetting();
+  const settings = useScopedSettings();
+  const updateSettings = useUpdateScopedSettings();
+  const gt = useGT();
+  return (
+    <SettingsRow
+      {...searchableSetting("lock-screen-activity")}
+      description={gt(
+        "On this Mac, show which threads are working or need you on the lock screen. Anyone who can see the screen can see it. An experiment that may change or break.",
+      )}
+      control={
+        <Switch
+          checked={settings.lockScreenActivityEnabled}
+          onCheckedChange={(checked) =>
+            updateSettings({ lockScreenActivityEnabled: Boolean(checked) })
+          }
+          aria-label={gt("Lock screen sessions")}
+        />
+      }
+    >
+      {settings.lockScreenActivityEnabled ? (
+        <div className="mt-2 mb-2 border-l-2 border-border/60 ps-3">
+          <SettingsRow
+            {...searchableSetting("lock-screen-activity-titles")}
+            className="px-0 py-2 sm:px-0"
+            description={gt(
+              "Without this, the lock screen groups sessions by project and shows only how many are in each status.",
+            )}
+            control={
+              <Switch
+                checked={settings.lockScreenActivityShowTitles}
+                onCheckedChange={(checked) =>
+                  updateSettings({ lockScreenActivityShowTitles: Boolean(checked) })
+                }
+                aria-label={gt("Show thread titles on the lock screen")}
+              />
+            }
+          />
+        </div>
+      ) : null}
+    </SettingsRow>
   );
 }
