@@ -188,9 +188,10 @@ final class Runner {
     /// Latest-only: a batch carries the last valid update from one read; invalid lines are counted, not applied.
     private func apply(_ batch: StdinReader.Batch) {
         if batch.invalid > 0 {
-            log("live: ignored \(batch.invalid) invalid line(s): \(batch.reasons.map { "\($0)" }.joined(separator: ", ")); kept previous snapshot")
+            log("live: ignored \(batch.invalid) invalid line(s): \(batch.reasons.map { "\($0)" }.joined(separator: ", "))")
         }
-        guard let update = batch.latest else { return }
+        // A line that cannot be read means the host's card is not the one showing, so the old one must not stay up.
+        guard let update = batch.latest ?? (batch.invalid > 0 ? .clear : nil) else { return }
         switch update {
         case .clear:
             live = nil
