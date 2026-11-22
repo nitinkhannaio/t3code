@@ -47,7 +47,7 @@ final class Runner {
         panel = CardPanel(frame: placed.panel, appearance: options.appearance ?? .dark)
         redraw()
         if options.expandOnClick {
-            let hit = CardHitPanel(frame: placed.hitFrame(currentHeight: currentPlan().height), appearance: panel.card.cardAppearance, cardLevel: panel.level)
+            let hit = CardHitPanel(frame: placed.panel, appearance: panel.card.cardAppearance, cardLevel: panel.level)
             hit.hitView.onPointer = { [weak self] sample in MainActor.assumeIsolated { self?.pointer(sample) } }
             hit.onDroppedPointer = { [weak self] in
                 MainActor.assumeIsolated { self?.pointer(PointerSample(kind: .other, plain: false, insideShape: false)) }
@@ -104,7 +104,8 @@ final class Runner {
         observers.append((center, token))
     }
 
-    /// Display configuration changed. Hidden: re-place now. Shown: disarm (geometry is stale) and re-place on hide.
+    /// Display configuration changed. Hidden: re-place now. Shown: disarm (geometry is stale) and re-place on hide;
+    /// windows are never moved while locked (see CardHitPanel).
     private func screensChanged() {
         wallpaper.invalidate()
         if machine.shown {
@@ -129,6 +130,7 @@ final class Runner {
         toggle = CardToggle(capacity: placed.capacity)
         if let live { performInteraction(toggle.snapshot(live)) }
         panel.setFrame(placed.panel, display: false)
+        hitPanel?.setPanelFrame(placed.panel)
         panel.alphaValue = 1
         log("re-placed for screen=\(screen.frame) panel=\(placed.panel) rowCapacity=\(placed.capacity)")
         redraw()
@@ -326,7 +328,7 @@ final class Runner {
                 guard let hit = hitPanel else { continue }
                 redraw()
                 hit.arm()
-                log("expand-on-click armed: interactive region = \(hit.frame) (painted card only; panel \(panel.frame) stays click-through)")
+                log("expand-on-click armed: interactive region = \(hit.activeFrame) (painted card only; hit window \(hit.frame), card panel stays click-through)")
                 privateCall("hit adopt") { backend.adoptAuxiliary(hit) }
                 diagnose(hit, "hit", after: 0.5)
             case .disarm(let reason):

@@ -52,9 +52,10 @@ final class CardPanel: NSPanel {
     }
 }
 
-/// The only interactive surface: a window whose frame is the painted card's rect (never the max panel), one level
-/// above the card. Never key or main, non-activating; drops every event class except the left button; starts
-/// disarmed (ordered out, ignoresMouseEvents = true).
+/// The only interactive surface, one level above the card. Never key or main, non-activating; drops every event
+/// class except the left button; starts disarmed (ordered out, ignoresMouseEvents = true). Its frame is the card
+/// panel's and is never resized while locked: on the lock screen the window server did not follow setFrame for it
+/// (macOS 26.5, three displays). Only the painted card's rect is drawn and hit; the rest is alpha 0 and clicks pass.
 final class CardHitPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
@@ -72,12 +73,23 @@ final class CardHitPanel: NSPanel {
 
     var isArmed: Bool { isVisible && !ignoresMouseEvents }
 
-    /// Moves/resizes the hit window to `rect` (screen). Called only between frames the gate knows about.
+    /// The clickable screen rect: the painted card. Called only between frames the gate knows about.
+    private(set) var activeFrame: CGRect = .zero
+
     func place(_ rect: CGRect) {
-        guard frame != rect else { return }
-        setFrame(rect, display: isVisible)
-        hitView.frame = CGRect(origin: .zero, size: rect.size)
-        hitView.needsDisplay = true
+        guard activeFrame != rect else { return }
+        activeFrame = rect
+        hitView.activeRect = rect.offsetBy(dx: -frame.minX, dy: -frame.minY)
+        if isVisible { hitView.display() }
+    }
+
+    /// Follows the card panel to a new screen layout. Only while hidden, like the card panel itself.
+    func setPanelFrame(_ panelFrame: CGRect) {
+        setFrame(panelFrame, display: false)
+        hitView.frame = CGRect(origin: .zero, size: panelFrame.size)
+        let active = activeFrame
+        activeFrame = .zero
+        place(active)
     }
 
     func arm() {
@@ -137,6 +149,8 @@ final class CardHitView: NSView {
     }
     /// Raw pointer samples for the gate; the runner adds the fresh context. Phase name only for evidence logs.
     var onPointer: ((PointerSample) -> Void)?
+    /// The painted card in this view's space; nothing outside it is drawn or hit.
+    var activeRect: CGRect = .zero { didSet { needsDisplay = true } }
 
     init(frame: CGRect, appearance: CardAppearance) {
         palette = .forAppearance(appearance)
@@ -158,7 +172,9 @@ final class CardHitView: NSView {
     /// The app is never active, so without this the first click would be swallowed.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
-    func insideShape(_ pointInView: NSPoint) -> Bool { CardHitShape.contains(pointInView, size: bounds.size) }
+    func insideShape(_ pointInView: NSPoint) -> Bool {
+        CardHitShape.contains(CGPoint(x: pointInView.x - activeRect.minX, y: pointInView.y - activeRect.minY), size: activeRect.size)
+    }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         // `point` is in the superview's space; this view is the content view, so that is the window's content space.
@@ -171,12 +187,13 @@ final class CardHitView: NSView {
     }
 
     func hitPath() -> NSBezierPath {
-        let r = bounds.insetBy(dx: InteractionConfig.hitInset, dy: InteractionConfig.hitInset)
+        let r = activeRect.insetBy(dx: InteractionConfig.hitInset, dy: InteractionConfig.hitInset)
         let k = min(InteractionConfig.hitCornerRadius, r.width / 2, r.height / 2)
         return NSBezierPath(roundedRect: r, xRadius: k, yRadius: k)
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        guard activeRect.width > 2 * InteractionConfig.hitInset, activeRect.height > 2 * InteractionConfig.hitInset else { return }
         palette.primary.withAlphaComponent(pressed ? InteractionConfig.pressedFillAlpha : InteractionConfig.idleFillAlpha).setFill()
         hitPath().fill()
     }

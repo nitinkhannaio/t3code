@@ -20,7 +20,8 @@ func interactionCheck() -> Int32 {
     let expanded = renderPlan(.allStates, expanded: true, interactive: true)
     let six = renderPlan(.sixRows, expanded: true, interactive: true)
     cardPanel.update(collapsed)
-    let hit = CardHitPanel(frame: surface.hitFrame(currentHeight: collapsed.height), appearance: .dark, cardLevel: cardPanel.level)
+    let hit = CardHitPanel(frame: surface.panel, appearance: .dark, cardLevel: cardPanel.level)
+    hit.place(surface.hitFrame(currentHeight: collapsed.height))
     for (name, panel) in [("card", cardPanel as NSPanel), ("hit", hit as NSPanel)] {
         check(!panel.canBecomeKey && !panel.canBecomeMain, "\(name) never key/main")
         check(panel.styleMask.contains(.nonactivatingPanel) && panel.styleMask.contains(.borderless), "\(name) borderless nonactivating")
@@ -33,9 +34,11 @@ func interactionCheck() -> Int32 {
     check(cardPanel.card.hitTest(NSPoint(x: 20, y: 20)) == nil, "card view never hit")
     check(hit.ignoresMouseEvents && !hit.isArmed, "hit panel starts disarmed")
     check(hit.level.rawValue == cardPanel.level.rawValue + 1, "hit panel one level above card")
-    check(hit.frame == surface.cardOnScreen(height: collapsed.height), "hit frame == painted collapsed card \(hit.frame)")
-    check(hit.frame.maxY < surface.panel.maxY - 1, "max panel's transparent top is not in the hit window")
-    check(hit.frame.minX == surface.panel.minX && hit.frame.width == surface.panel.width && hit.frame.minY == surface.panel.minY, "hit shares the card's bottom/left/right edges")
+    check(hit.frame == surface.panel, "hit window keeps the card panel's fixed frame \(hit.frame)")
+    let active = hit.activeFrame
+    check(active == surface.cardOnScreen(height: collapsed.height), "clickable area == painted collapsed card \(active)")
+    check(active.maxY < surface.panel.maxY - 1, "max panel's transparent top is not clickable")
+    check(active.minX == surface.panel.minX && active.width == surface.panel.width && active.minY == surface.panel.minY, "clickable area shares the card's bottom/left/right edges")
     check(!hit.hitView.acceptsFirstResponder && !hit.hitView.needsPanelToBecomeKey && hit.hitView.acceptsFirstMouse(for: nil), "hit view focus rules")
     for type in [NSEvent.EventType.keyDown, .keyUp, .flagsChanged, .scrollWheel, .rightMouseDown, .rightMouseUp, .otherMouseDown, .mouseMoved, .magnify, .swipe] {
         check(CardHitPanel.droppedTypes.contains(type), "hit drops \(type.rawValue)")
@@ -93,27 +96,32 @@ func interactionCheck() -> Int32 {
     for plan in [collapsed, expanded] {
         hit.place(surface.hitFrame(currentHeight: plan.height))
         let v = hit.hitView
+        let area = v.activeRect
         check(v.frame.size == hit.frame.size, "hit view fills hit window")
+        check(hit.frame == surface.panel, "hit window frame unchanged h=\(plan.height)")
+        check(area == surface.cardOnScreen(height: plan.height).offsetBy(dx: -hit.frame.minX, dy: -hit.frame.minY), "clickable area == painted card h=\(plan.height)")
         guard let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { check(false, "hit bitmap"); continue }
         v.cacheDisplay(in: v.bounds, to: rep)
         let sx = CGFloat(rep.pixelsWide) / v.bounds.width, sy = CGFloat(rep.pixelsHigh) / v.bounds.height
+        func shape(_ p: CGPoint, grow: CGFloat = 0) -> Bool {
+            CardHitShape.contains(CGPoint(x: p.x - area.minX, y: p.y - area.minY), size: area.size,
+                                  radius: InteractionConfig.hitCornerRadius + grow, inset: InteractionConfig.hitInset + grow)
+        }
         var mismatches = 0, outsideLit = 0, testMismatch = 0
         for py in stride(from: 0, to: rep.pixelsHigh, by: 2) {
             for px in stride(from: 0, to: rep.pixelsWide, by: 2) {
                 let p = CGPoint(x: (CGFloat(px) + 0.5) / sx, y: v.bounds.height - (CGFloat(py) + 0.5) / sy)
-                let inside = CardHitShape.contains(p, size: v.bounds.size)
                 let a = rep.colorAt(x: px, y: py)?.alphaComponent ?? 0
-                let strictlyInside = CardHitShape.contains(p, size: v.bounds.size, radius: InteractionConfig.hitCornerRadius + 1, inset: InteractionConfig.hitInset + 1)
-                if strictlyInside && a < 1.0 / 255 { mismatches += 1 }
-                if !CardHitShape.contains(p, size: v.bounds.size, radius: InteractionConfig.hitCornerRadius - 1, inset: InteractionConfig.hitInset - 1) && a > 0 { outsideLit += 1 }
-                if (v.hitTest(p) === v) != inside { testMismatch += 1 }
+                if shape(p, grow: 1) && a < 1.0 / 255 { mismatches += 1 }
+                if !shape(p, grow: -1) && a > 0 { outsideLit += 1 }
+                if (v.hitTest(p) === v) != shape(p) { testMismatch += 1 }
             }
         }
         check(mismatches == 0, "hit pixels alpha>0 inside shape (\(mismatches) misses) h=\(plan.height)")
-        check(outsideLit == 0, "hit pixels alpha==0 outside shape (\(outsideLit)) h=\(plan.height)")
+        check(outsideLit == 0, "hit pixels alpha==0 outside shape, incl. the panel's transparent top (\(outsideLit)) h=\(plan.height)")
         check(testMismatch == 0, "hitView.hitTest == CardHitShape (\(testMismatch)) h=\(plan.height)")
-        check(v.hitTest(NSPoint(x: 0.4, y: 0.4)) == nil && v.hitTest(NSPoint(x: v.bounds.maxX - 0.4, y: v.bounds.maxY - 0.4)) == nil, "rounded corners not hit")
-        check(v.hitTest(NSPoint(x: -1, y: 20)) == nil && v.hitTest(NSPoint(x: v.bounds.midX, y: v.bounds.maxY + 1)) == nil, "outside the card not hit")
+        check(v.hitTest(NSPoint(x: area.minX + 0.4, y: area.minY + 0.4)) == nil && v.hitTest(NSPoint(x: area.maxX - 0.4, y: area.maxY - 0.4)) == nil, "rounded corners not hit")
+        check(v.hitTest(NSPoint(x: -1, y: 20)) == nil && v.hitTest(NSPoint(x: area.midX, y: area.maxY + 1)) == nil, "outside the card not hit")
         // Coordinate conversions: AppKit vs Core.
         for p in [CGPoint(x: 5, y: 7), CGPoint(x: v.bounds.midX, y: v.bounds.midY), CGPoint(x: v.bounds.maxX - 3, y: v.bounds.maxY - 2)] {
             let appkit = hit.convertPoint(toScreen: v.convert(p, to: nil))
