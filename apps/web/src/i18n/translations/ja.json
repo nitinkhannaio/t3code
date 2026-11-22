@@ -12950,5 +12950,7 @@
       "v": "v"
     },
     " 件をリンクされた項目で表示"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, other {{count} 件の MCP サーバーでサインインが必要です}}",
+  "b469b925d65afbdf": "{count, plural, other {{count} 件の MCP サーバーにサインイン済み}}"
 }

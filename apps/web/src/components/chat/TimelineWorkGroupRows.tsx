@@ -15,10 +15,14 @@ import { observeVisibleAnimation } from "../../lib/visibleAnimation";
 import { T, useGT, useMessages } from "gt-react";
 import { memo, use, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LegendList, type LegendListRef } from "@legendapp/list/react";
+import { useAtomValue } from "@effect/atom-react";
+import * as DateTime from "effect/DateTime";
+import { threadEnvironment } from "../../state/threads";
+import { mcpSignInGroupFocusProps, mcpSignInNoticeKey } from "./McpSignInAction";
 import { workEntryDisplayIndicatesToolFailure } from "../../session-logic";
 import ChatMarkdown from "../ChatMarkdown";
 import { assetMediaActionsSource } from "./ChatMarkdownMedia";
-import { Minimize2Icon, XIcon } from "lucide-react";
+import { ChevronRightIcon, Minimize2Icon, XIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { getVirtualizedScrollFadeClassName } from "../ui/scroll-area";
 import {
@@ -733,6 +737,94 @@ export function WorkGroupToggleTimelineRow({
       createdAt={row.createdAt}
       timestampFormat={ctx.timestampFormat}
       onToggle={() => ctx.onToggleWorkGroup(row.groupId, row.id)}
+    />
+  );
+}
+
+export function McpSignInGroupTimelineRow({
+  row,
+}: {
+  row: Extract<TimelineRow, { kind: "mcp-sign-in-group" }>;
+}) {
+  const ctx = use(TimelineRowCtx);
+  const gt = useGT();
+  const notices = row.notices.flatMap((entry) => {
+    const payload = entry.structuredPayload;
+    return payload?.type === "system_notice" && payload.mcpSignIn !== undefined
+      ? [
+          {
+            threadId: payload.threadId,
+            server: payload.mcpSignIn.server,
+            noticeAt: DateTime.toEpochMillis(payload.updatedAt),
+          },
+        ]
+      : [];
+  });
+  const awaiting = useAtomValue(
+    threadEnvironment.mcpServersAwaitingSignInAtom(ctx.activeThreadEnvironmentId, notices),
+  );
+  // A server can be noticed again in a later turn; the summary names each server once.
+  const awaitingServers = [...new Set(awaiting)];
+  const servers = [...new Set(notices.map((notice) => notice.server))];
+  const allSignedIn = awaitingServers.length === 0;
+  return (
+    <WorkLogButton
+      {...mcpSignInGroupFocusProps(
+        notices.map((notice) =>
+          mcpSignInNoticeKey({ environmentId: ctx.activeThreadEnvironmentId, ...notice }),
+        ),
+      )}
+      aria-expanded={row.expanded}
+      onClick={() => ctx.onToggleWorkGroup(row.groupId, row.id, row.revealKey)}
+      icon={
+        <span
+          className={cn(
+            "flex size-4 items-center justify-center",
+            allSignedIn ? "text-success-foreground" : "text-warning",
+          )}
+        >
+          <ToolActivityIconView
+            icon={undefined}
+            fallbackName={allSignedIn ? "check" : "circle-alert"}
+            className="block size-4 shrink-0 stroke-2"
+            muted
+          />
+        </span>
+      }
+      label={
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span
+            className={cn(
+              "min-w-0 truncate font-medium",
+              allSignedIn ? "text-success-foreground" : "text-warning",
+            )}
+          >
+            {allSignedIn
+              ? gt(
+                  "{count, plural, one {Signed in to {count} MCP server} other {Signed in to {count} MCP servers}}",
+                  { count: servers.length },
+                )
+              : gt(
+                  "{count, plural, one {{count} MCP server needs a sign-in} other {{count} MCP servers need a sign-in}}",
+                  { count: awaitingServers.length },
+                )}
+          </span>
+          {/* Names take only the space left, so the status truncates only when it alone overflows. */}
+          <span className="min-w-0 flex-1 basis-0 truncate text-muted-foreground">
+            {(allSignedIn ? servers : awaitingServers).join(", ")}
+          </span>
+        </span>
+      }
+      trailing={
+        <span className="flex size-4 shrink-0 items-center justify-center" aria-hidden>
+          <ChevronRightIcon
+            className={cn(
+              "size-3 shrink-0 text-icon-muted opacity-70 transition-transform duration-200",
+              row.expanded && "rotate-90",
+            )}
+          />
+        </span>
+      }
     />
   );
 }

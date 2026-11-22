@@ -13028,5 +13028,7 @@
       "v": "v"
     },
     " 项"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, other {{count} 个 MCP 服务器需要登录}}",
+  "b469b925d65afbdf": "{count, plural, other {已登录 {count} 个 MCP 服务器}}"
 }

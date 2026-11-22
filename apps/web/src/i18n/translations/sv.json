@@ -13021,5 +13021,7 @@
       "v": "v"
     },
     " till i Länkade objekt"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, one {{count} MCP-server behöver en inloggning} other {{count} MCP-servrar behöver en inloggning}}",
+  "b469b925d65afbdf": "{count, plural, one {Inloggad på {count} MCP-server} other {Inloggad på {count} MCP-servrar}}"
 }

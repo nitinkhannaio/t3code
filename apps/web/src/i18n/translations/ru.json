@@ -13013,5 +13013,7 @@
       "v": "v"
     },
     " в разделе «Привязанные элементы»"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, one {{count} MCP-серверу нужен вход} few {{count} MCP-серверам нужен вход} many {{count} MCP-серверам нужен вход} other {{count} MCP-серверам нужен вход}}",
+  "b469b925d65afbdf": "{count, plural, one {Вход выполнен на {count} MCP-сервере} few {Вход выполнен на {count} MCP-серверах} many {Вход выполнен на {count} MCP-серверах} other {Вход выполнен на {count} MCP-сервера}}"
 }

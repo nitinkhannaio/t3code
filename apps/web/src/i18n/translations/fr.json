@@ -13014,5 +13014,7 @@
       "v": "v"
     },
     " de plus dans Éléments associés"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, one {{count} serveur MCP nécessite une connexion} other {{count} serveurs MCP nécessitent une connexion}}",
+  "b469b925d65afbdf": "{count, plural, one {Connecté à {count} serveur MCP} other {Connecté à {count} serveurs MCP}}"
 }

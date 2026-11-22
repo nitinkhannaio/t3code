@@ -98,7 +98,8 @@ export interface TimelineRowSharedState {
   onFileOpen: (attachment: ChatFileAttachment) => void;
   onFileDownload: (attachment: ChatFileAttachment) => void;
   openPullRequest: (event: MouseEvent<HTMLElement>, url: string) => void;
-  onToggleWorkGroup: (groupId: string, anchorKey: string) => void;
+  /** `contentKey` names the row to reveal on opening; by default the group's details row. */
+  onToggleWorkGroup: (groupId: string, anchorKey: string, contentKey?: string) => void;
   onToggleWorkEntry: (anchorKey: string, collapsed: boolean, entryId?: string) => void;
   onWorkEntryContentReady?: (anchorKey: string, entryId: string) => void;
   onCancelWorktreeSetup: (() => void) | null;

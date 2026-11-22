@@ -13014,5 +13014,7 @@
       "v": "v"
     },
     " mais em Itens vinculados"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, one {{count} servidor MCP precisa de login} other {{count} servidores MCP precisam de login}}",
+  "b469b925d65afbdf": "{count, plural, one {Conectado a {count} servidor MCP} other {Conectado a {count} servidores MCP}}"
 }

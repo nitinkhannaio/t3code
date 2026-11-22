@@ -232,6 +232,36 @@ export function createThreadEnvironmentAtoms<R, E>(
     input: { readonly threadId: ThreadId; readonly server: string; readonly noticeAt: number },
   ) =>
     mcpNoticeSignedInFamily(JSON.stringify([mcpSignInKey(environmentId, input), input.noticeAt]));
+  const mcpServersAwaitingSignInFamily = Atom.family((key: string) => {
+    const [environmentId, notices] = JSON.parse(key) as [
+      EnvironmentId,
+      ReadonlyArray<{
+        readonly threadId: ThreadId;
+        readonly server: string;
+        readonly noticeAt: number;
+      }>,
+    ];
+    return Atom.make((get): ReadonlyArray<string> =>
+      notices
+        .filter((notice) => !get(mcpSignedInAtom(environmentId, notice)))
+        .map((notice) => notice.server),
+    );
+  });
+  /** The servers whose sign-in notices still stand, in notice order. */
+  const mcpServersAwaitingSignInAtom = (
+    environmentId: EnvironmentId,
+    notices: ReadonlyArray<{
+      readonly threadId: ThreadId;
+      readonly server: string;
+      readonly noticeAt: number;
+    }>,
+  ) =>
+    mcpServersAwaitingSignInFamily(
+      JSON.stringify([
+        environmentId,
+        notices.map(({ threadId, server, noticeAt }) => ({ threadId, server, noticeAt })),
+      ]),
+    );
   const sent = {
     armTitleRegeneration: createEnvironmentCommand(runtime, {
       label: "environment-data:commands:thread:regenerate-title",
@@ -599,6 +629,7 @@ export function createThreadEnvironmentAtoms<R, E>(
     regenerateTitle,
     rowActionsAtom,
     mcpSignedInAtom,
+    mcpServersAwaitingSignInAtom,
     snapshotAtom: optimistic.snapshotAtom,
     pendingThreadIdsAtom: optimistic.pendingThreadIdsAtom,
     pendingSyncAtom: triage.pendingSyncAtom,

@@ -580,6 +580,17 @@ type MessagesTimelineRowContent =
       hasFailure: boolean;
     }
   | {
+      /** Adjacent MCP sign-in notices share one row; expanding it shows each server's notice. */
+      kind: "mcp-sign-in-group";
+      id: string;
+      createdAt: string;
+      groupId: string;
+      notices: WorkLogEntry[];
+      expanded: boolean;
+      /** The last notice's own row, which expanding scrolls into view. */
+      revealKey: string;
+    }
+  | {
       /** Images the agent opened in the tool group above, kept visible while the group is collapsed. */
       kind: "viewed-images";
       id: string;
@@ -690,6 +701,11 @@ export interface StableMessagesTimelineRowsState {
 
 function workGroupId(timelineEntryId: string): string {
   return `work-group:${timelineEntryId}`;
+}
+
+function isMcpSignInNotice(entry: TimelineEntry | undefined): boolean {
+  const payload = entry?.kind === "work" ? entry.entry.structuredPayload : undefined;
+  return payload?.type === "system_notice" && payload.mcpSignIn !== undefined;
 }
 
 function expandedWorkGroupRow(
@@ -1341,6 +1357,14 @@ function attachTrailingToolGroupsToAssistant(
         candidate.projectedItem.item.runId === runId
       ) {
         hasTrailingToolGroup = true;
+        lastTrailingWorkIndex = index;
+        continue;
+      }
+      if (
+        candidate.kind === "mcp-sign-in-group" &&
+        hasTrailingToolGroup &&
+        candidate.notices.some((entry) => entry.runId === runId)
+      ) {
         lastTrailingWorkIndex = index;
         continue;
       }
@@ -2051,6 +2075,55 @@ export function deriveMessagesTimelineRows(
       continue;
     }
 
+    if (timelineEntry.kind === "work" && isMcpSignInNotice(timelineEntry)) {
+      const noticeEntries = [timelineEntry];
+      let cursor = index + 1;
+      while (cursor < timelineEntries.length) {
+        const nextEntry = timelineEntries[cursor];
+        if (
+          !isMcpSignInNotice(nextEntry) ||
+          nextEntry?.kind !== "work" ||
+          (input.isWorking && cursor === activeTurnHeaderIndex) ||
+          nextEntry.id === activeWorkPlacementEntryId ||
+          collapsedEntryIds.has(nextEntry.id) ||
+          collapsedSupersededEntryIds.has(nextEntry.id) ||
+          foldsByAnchorEntryId.has(nextEntry.id) ||
+          supersededFoldsByAnchorEntryId.has(nextEntry.id)
+        ) {
+          break;
+        }
+        noticeEntries.push(nextEntry);
+        cursor += 1;
+      }
+      if (noticeEntries.length > 1) {
+        const groupId = workGroupId(timelineEntry.id);
+        const expanded = input.expandedWorkGroupIds?.has(groupId) ?? false;
+        nextRows.push({
+          kind: "mcp-sign-in-group",
+          id: `mcp-sign-in-group:${timelineEntry.id}`,
+          createdAt: timelineEntry.createdAt,
+          groupId,
+          notices: noticeEntries.map((notice) => notice.entry),
+          expanded,
+          revealKey: noticeEntries.at(-1)!.id,
+        });
+        // The notices' own rows, as without the group, so the timeline keeps virtualizing them.
+        if (expanded) {
+          for (const notice of noticeEntries) {
+            nextRows.push({
+              kind: "work",
+              id: notice.id,
+              createdAt: notice.createdAt,
+              groupedEntries: [notice.entry],
+              isExpandedToolGroup: false,
+            });
+          }
+        }
+        index = cursor - 1;
+        continue;
+      }
+    }
+
     if (timelineEntry.kind === "work") {
       if (
         isPendingApproval(timelineEntry.entry) ||
@@ -2457,6 +2530,7 @@ function timelineRowIsWorkLog(row: MessagesTimelineRow | undefined): boolean {
     row !== undefined &&
     (row.kind === "work" ||
       row.kind === "work-toggle" ||
+      row.kind === "mcp-sign-in-group" ||
       row.kind === "work-live" ||
       row.kind === "thinking")
   );
@@ -2899,6 +2973,17 @@ function isRowUnchanged(a: MessagesTimelineRow, b: MessagesTimelineRow): boolean
         a.toolSurface === bw.toolSurface &&
         Equal.equals(a.toolIcon, bw.toolIcon) &&
         a.hasFailure === bw.hasFailure
+      );
+    }
+
+    case "mcp-sign-in-group": {
+      const bg = b as typeof a;
+      return (
+        a.createdAt === bg.createdAt &&
+        a.groupId === bg.groupId &&
+        a.expanded === bg.expanded &&
+        a.revealKey === bg.revealKey &&
+        Equal.equals(a.notices, bg.notices)
       );
     }
 

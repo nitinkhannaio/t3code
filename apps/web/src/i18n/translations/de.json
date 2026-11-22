@@ -13014,5 +13014,7 @@
       "v": "v"
     },
     " weitere unter Verknüpfte Elemente"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, one {{count} MCP-Server benötigt eine Anmeldung} other {{count} MCP-Server benötigen eine Anmeldung}}",
+  "b469b925d65afbdf": "{count, plural, one {Bei {count} MCP-Server angemeldet} other {Bei {count} MCP-Servern angemeldet}}"
 }

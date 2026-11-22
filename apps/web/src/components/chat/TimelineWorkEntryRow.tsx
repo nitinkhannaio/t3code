@@ -37,7 +37,7 @@ import ChatMarkdown from "../ChatMarkdown";
 import { ChatMarkdownAssetImage } from "./ChatMarkdownMedia";
 import type { ExpandedImagePreview } from "./ExpandedImagePreview";
 import { workGroupImageGallery } from "./markdownImageGallery";
-import { McpSignInAction } from "./McpSignInAction";
+import { McpSignInAction, mcpSignInNoticeKey, mcpSignInNoticeFocusRef } from "./McpSignInAction";
 import * as DateTime from "effect/DateTime";
 import {
   ChevronRightIcon,
@@ -463,8 +463,20 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
         providerThreadId={payload.providerThreadId}
         server={payload.mcpSignIn.server}
         noticeAt={DateTime.toEpochMillis(payload.updatedAt)}
+        owner={ctx.routeThreadKey}
       />
     ) : null;
+  const signInFocusRef =
+    payload?.type === "system_notice" && payload.mcpSignIn !== undefined
+      ? mcpSignInNoticeFocusRef(
+          mcpSignInNoticeKey({
+            environmentId: ctx.activeThreadEnvironmentId,
+            threadId: payload.threadId,
+            server: payload.mcpSignIn.server,
+            noticeAt: DateTime.toEpochMillis(payload.updatedAt),
+          }),
+        )
+      : undefined;
   const skill =
     payload?.type === "dynamic_tool"
       ? claudeSkillInvocation(payload.toolName, payload.input)
@@ -572,6 +584,7 @@ function WorkEntryLogRow(props: WorkEntryRowProps) {
 
   return (
     <WorkLogRow
+      ref={signInFocusRef}
       data-work-entry-id={workEntry.id}
       data-v2-item-type={workEntry.projectedItem?.item.type}
       data-v2-item-visibility={workEntry.projectedItem?.visibility}

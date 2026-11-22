@@ -123,8 +123,10 @@ import {
   ThinkingTimelineRow,
   LiveWorkEntryTimelineRow,
   WorkGroupToggleTimelineRow,
+  McpSignInGroupTimelineRow,
 } from "./TimelineWorkGroupRows";
 import { ViewedImagesTimelineRow } from "./TimelineWorkEntryRow";
+import { McpSignInDialogHost } from "./McpSignInAction";
 import { UserMessageRow } from "./TimelineUserMessageRow";
 import {
   AssistantTimelineRow,
@@ -531,11 +533,20 @@ const ConversationTimeline = memo(function ConversationTimeline({
       ? row.querySelector<HTMLElement>(`[data-work-entry-id="${CSS.escape(pending.entryId)}"]`)
       : null;
     const contentIndex = pending.contentKey ? state?.indexByKey(pending.contentKey) : undefined;
-    const content = contentIndex === undefined ? null : state?.elementAtIndex(contentIndex);
+    // Virtualization may not have mounted the revealed row yet, so reveal up to the last one it has.
+    let content: HTMLElement | null = null;
+    for (let at = contentIndex ?? -1; state && index !== undefined && at > index; at -= 1) {
+      const mounted = state.elementAtIndex(at);
+      if (mounted instanceof HTMLElement) {
+        content = mounted;
+        break;
+      }
+    }
     const bounds = (entry ?? row).getBoundingClientRect();
+    const contentBottom = content?.getBoundingClientRect().bottom;
     const delta = resolveDisclosureRevealScrollDelta({
       rowTop: bounds.top,
-      rowBottom: content?.getBoundingClientRect().bottom ?? bounds.bottom,
+      rowBottom: contentBottom ?? bounds.bottom,
       viewportTop: viewport.top,
       viewportBottom: viewport.bottom,
       composerOverlayHeight: contentInsetEndAdjustment,
@@ -593,10 +604,12 @@ const ConversationTimeline = memo(function ConversationTimeline({
       return next;
     });
   };
-  const onToggleWorkGroup = (groupId: string, anchorKey: string) => {
+  const onToggleWorkGroup = (groupId: string, anchorKey: string, contentKey?: string) => {
     preserveDisclosurePosition(
       anchorKey,
-      expandedWorkGroupIds.has(groupId) ? undefined : { contentKey: `${groupId}:details` },
+      expandedWorkGroupIds.has(groupId)
+        ? undefined
+        : { contentKey: contentKey ?? `${groupId}:details` },
     );
     setExpandedWorkGroupIds((existing) => {
       const next = new Set(existing);
@@ -1478,6 +1491,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   return (
     <>
       {activityAnnouncer}
+      <McpSignInDialogHost owner={routeThreadKey} />
       <MarkdownFindContext value={findActive}>
         <TimelineRowActivityCtx value={activityState}>
           <TooltipScrollDismissArea
@@ -1670,9 +1684,13 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
     row.kind === "work" ||
     row.kind === "work-live" ||
     row.kind === "work-toggle" ||
+    row.kind === "mcp-sign-in-group" ||
     row.kind === "thinking";
   const isExpandedToolGroupHeader =
-    (row.kind === "work-toggle" || row.kind === "work-live" || row.kind === "thinking") &&
+    (row.kind === "work-toggle" ||
+      row.kind === "mcp-sign-in-group" ||
+      row.kind === "work-live" ||
+      row.kind === "thinking") &&
     row.expanded === true;
 
   return (
@@ -1729,6 +1747,7 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
           ) : null}
           {row.kind === "work-live" ? <LiveWorkEntryTimelineRow row={row} /> : null}
           {row.kind === "work-toggle" ? <WorkGroupToggleTimelineRow row={row} /> : null}
+          {row.kind === "mcp-sign-in-group" ? <McpSignInGroupTimelineRow row={row} /> : null}
           {row.kind === "thinking" ? <ThinkingTimelineRow row={row} /> : null}
         </WorkLogBlock>
       ) : null}

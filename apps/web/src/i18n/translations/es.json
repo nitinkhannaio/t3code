@@ -13009,5 +13009,7 @@
       "v": "v"
     },
     " más en Elementos vinculados"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, one {{count} servidor MCP necesita iniciar sesión} other {{count} servidores MCP necesitan iniciar sesión}}",
+  "b469b925d65afbdf": "{count, plural, one {Sesión iniciada en {count} servidor MCP} other {Sesión iniciada en {count} servidores MCP}}"
 }

@@ -13023,5 +13023,7 @@
       "v": "v"
     },
     " more in Linked items"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, one {{count} MCP server needs a sign-in} other {{count} MCP servers need a sign-in}}",
+  "b469b925d65afbdf": "{count, plural, one {Signed in to {count} MCP server} other {Signed in to {count} MCP servers}}"
 }

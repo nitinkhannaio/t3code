@@ -12947,5 +12947,7 @@
       "v": "v"
     },
     "개 더 보기"
-  ]
+  ],
+  "b9d08ae584bd7922": "{count, plural, other {MCP 서버 {count}개에 로그인이 필요합니다}}",
+  "b469b925d65afbdf": "{count, plural, other {MCP 서버 {count}개에 로그인됨}}"
 }

@@ -533,6 +533,140 @@ describe("deriveMessagesTimelineRows", () => {
     },
   );
 
+  it("collapses adjacent MCP sign-in notices into one row that expands to each notice", () => {
+    const fixture = makeStreamingTimelineFixture();
+    const signInNotice = (server: string, ordinal: number): OrchestrationV2ProjectedTurnItem => {
+      const id = TurnItemId.make(`mcp-sign-in-${server}`);
+      return {
+        ...fixture.visibleTurnItems[0]!,
+        sourceItemId: id,
+        item: {
+          id,
+          threadId: fixture.threadId,
+          runId: fixture.runId,
+          nodeId: null,
+          providerThreadId: null,
+          providerTurnId: null,
+          nativeItemRef: null,
+          parentItemId: null,
+          ordinal,
+          startedAt: DateTime.makeUnsafe(fixture.time(1)),
+          completedAt: DateTime.makeUnsafe(fixture.time(1)),
+          updatedAt: DateTime.makeUnsafe(fixture.time(1)),
+          type: "system_notice",
+          title: `MCP server ${server} needs a sign-in`,
+          message: `The ${server} MCP server needs a sign-in before Claude can use it.`,
+          mcpSignIn: { server },
+          status: "completed",
+        },
+      };
+    };
+    const entriesFor = (servers: ReadonlyArray<string>) =>
+      deriveTimelineEntriesFromVisibleTurnItems({
+        visibleTurnItems: servers.map((server, index) => signInNotice(server, index + 1)),
+        optimisticMessages: [],
+      });
+    const rowsFor = (entries: TimelineEntry[], expandedWorkGroupIds?: ReadonlySet<string>) =>
+      deriveMessagesTimelineRows({
+        timelineEntries: entries,
+        isWorking: false,
+        activeTurnStartedAt: null,
+        latestRun: null,
+        turnDiffSummaries: [],
+        supportsConversationRollback: false,
+        expandedRunIds: new Set([fixture.runId]),
+        ...(expandedWorkGroupIds ? { expandedWorkGroupIds } : {}),
+      });
+    const workEntries = (entries: TimelineEntry[]) =>
+      entries.flatMap((entry) => (entry.kind === "work" ? [entry.entry] : []));
+
+    const single = entriesFor(["ahrefs"]);
+    expect(rowsFor(single)).toEqual([
+      expect.objectContaining({ kind: "work", groupedEntries: workEntries(single) }),
+    ]);
+
+    const several = entriesFor(["ahrefs", "kernel", "fold"]);
+    const collapsed = rowsFor(several);
+    expect(collapsed).toEqual([
+      expect.objectContaining({
+        kind: "mcp-sign-in-group",
+        notices: workEntries(several),
+        expanded: false,
+      }),
+    ]);
+    const group = collapsed[0];
+    if (group?.kind !== "mcp-sign-in-group") throw new Error("Expected a sign-in group");
+
+    // Opened, each notice keeps the row it has without the group.
+    expect(rowsFor(several, new Set([group.groupId]))).toEqual([
+      expect.objectContaining({
+        kind: "mcp-sign-in-group",
+        expanded: true,
+        revealKey: several.at(-1)!.id,
+      }),
+      ...several.map((notice) =>
+        expect.objectContaining({
+          kind: "work",
+          id: notice.id,
+          groupedEntries: workEntries([notice]),
+          isExpandedToolGroup: false,
+        }),
+      ),
+    ]);
+
+    // The reply's footer follows the whole group whether or not it is open.
+    const at = fixture.time(1);
+    const tool = (id: string): TimelineEntry => ({
+      kind: "work",
+      id,
+      createdAt: at,
+      entry: {
+        id,
+        runId: fixture.runId,
+        createdAt: at,
+        label: "Ran command",
+        tone: "tool",
+        toolLifecycleStatus: "completed",
+      },
+    });
+    const withReply: TimelineEntry[] = [
+      {
+        kind: "message",
+        id: "reply",
+        createdAt: at,
+        message: {
+          id: MessageId.make("reply"),
+          role: "assistant",
+          runId: fixture.runId,
+          text: "Done.",
+          createdAt: at,
+          updatedAt: at,
+          streaming: false,
+        },
+      },
+      tool("tool-1"),
+      tool("tool-2"),
+      ...several,
+    ];
+    expect(rowsFor(withReply).map((row) => row.kind)).toEqual([
+      "turn-fold",
+      "message",
+      "work-toggle",
+      "mcp-sign-in-group",
+      "assistant-meta",
+    ]);
+    expect(rowsFor(withReply, new Set([group.groupId])).map((row) => row.kind)).toEqual([
+      "turn-fold",
+      "message",
+      "work-toggle",
+      "mcp-sign-in-group",
+      "work",
+      "work",
+      "work",
+      "assistant-meta",
+    ]);
+  });
+
   it.each(["info", "warning", "error", undefined] as const)(
     "renders %s notices with compatible severity",
     (level) => {

@@ -1395,6 +1395,91 @@ describe("MessagesTimeline messages", () => {
       ),
     );
   });
+
+  it("reveals the notices a sign-in group opens beyond the rendered rows", async () => {
+    setup();
+    const props = baseProps();
+    const composerOverlayHeight = 200;
+    const threadId = ThreadId.make("sign-in-thread");
+    const at = DateTime.makeUnsafe(CREATED_AT);
+    const notices = deriveTimelineEntriesFromVisibleTurnItems({
+      visibleTurnItems: Array.from({ length: 40 }, (_, index) => {
+        const id = TurnItemId.make(`sign-in-${index}`);
+        return {
+          position: index,
+          visibility: "local" as const,
+          sourceThreadId: threadId,
+          sourceItemId: id,
+          item: {
+            id,
+            threadId,
+            runId: RunId.make("sign-in-run"),
+            nodeId: null,
+            providerThreadId: null,
+            providerTurnId: null,
+            nativeItemRef: null,
+            parentItemId: null,
+            ordinal: index,
+            title: `MCP server server-${index} needs a sign-in`,
+            startedAt: at,
+            completedAt: at,
+            updatedAt: at,
+            type: "system_notice" as const,
+            status: "completed" as const,
+            message: `The server-${index} MCP server needs a sign-in before Claude can use it.`,
+            mcpSignIn: { server: `server-${index}` },
+          },
+        };
+      }),
+      optimisticMessages: [],
+    });
+    await using screen = await renderElement(
+      <MessagesTimeline
+        {...props}
+        liveFollowEnabled={false}
+        contentInsetEndAdjustment={composerOverlayHeight}
+        timelineEntries={[
+          ...Array.from({ length: 6 }, (_, index) =>
+            message(
+              `Message ${index}\n\n${"Long paragraph. ".repeat(80)}`,
+              { role: "assistant" },
+              `tall-${index}`,
+            ),
+          ),
+          ...notices,
+          message("Done.", { role: "assistant" }, "final-message"),
+        ]}
+      />,
+    );
+    await vi.waitFor(() => expect(props.listRef.current?.getScrollableNode()).toBeTruthy());
+    const viewport = props.listRef.current!.getScrollableNode()!;
+    const summary = () =>
+      screen.container.querySelector<HTMLElement>(
+        '[data-timeline-row-kind="mcp-sign-in-group"] button',
+      );
+    const visibleBottom = () => viewport.getBoundingClientRect().bottom - composerOverlayHeight;
+    await act(() => {
+      void props.listRef.current!.scrollToIndex({ index: 6, animated: false });
+    });
+    await vi.waitFor(async () => {
+      await act(() => {
+        viewport.scrollTop += summary()!.getBoundingClientRect().bottom - (visibleBottom() - 8);
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+      expect(summary()!.getBoundingClientRect().bottom).toBeLessThanOrEqual(visibleBottom());
+    });
+    const collapsedScrollTop = viewport.scrollTop;
+
+    await click(summary()!);
+
+    // The last notice is past what the list renders, so only its laid-out position can reveal it.
+    await vi.waitFor(() => expect(viewport.scrollTop).toBeGreaterThan(collapsedScrollTop + 100));
+    await vi.waitFor(() =>
+      expect(summary()!.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+        viewport.getBoundingClientRect().top,
+      ),
+    );
+  });
 });
 
 function usageLimitEntries(resetAt: string) {
