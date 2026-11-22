@@ -185,6 +185,7 @@ interface BuildCliInput {
   readonly skipBuild: Option.Option<boolean>;
   readonly keepStage: Option.Option<boolean>;
   readonly signed: Option.Option<boolean>;
+  readonly lockScreenActivity: Option.Option<boolean>;
   readonly verbose: Option.Option<boolean>;
   readonly mockUpdates: Option.Option<boolean>;
   readonly mockUpdateServerPort: Option.Option<number>;
@@ -956,6 +957,7 @@ interface ResolvedBuildOptions {
   readonly skipBuild: boolean;
   readonly keepStage: boolean;
   readonly signed: boolean;
+  readonly lockScreenActivity: boolean;
   readonly verbose: boolean;
   readonly mockUpdates: boolean;
   readonly mockUpdateServerPort: number | undefined;
@@ -999,6 +1001,8 @@ export const DESKTOP_FILE_EXCLUSIONS = [
   "!apps/desktop/prod-resources/browser-secret/**/*",
   "!apps/desktop/prod-resources/apple-speech",
   "!apps/desktop/prod-resources/apple-speech/**/*",
+  "!apps/desktop/prod-resources/lock-screen-activity",
+  "!apps/desktop/prod-resources/lock-screen-activity/**/*",
   "!apps/desktop/prod-resources/windows-server",
   "!apps/desktop/prod-resources/windows-server/**/*",
   "!apps/desktop/prod-resources/wsl-runtime.tar.gz",
@@ -1124,6 +1128,10 @@ export const LINUX_BROWSER_SECRET_EXTRA_RESOURCES = [
 export const MAC_APPLE_SPEECH_EXTRA_RESOURCES = [
   { from: "apps/desktop/prod-resources/apple-speech", to: "apple-speech" },
 ] as const;
+const MAC_LOCK_SCREEN_ACTIVITY_RESOURCE = {
+  from: "apps/desktop/prod-resources/lock-screen-activity",
+  to: "lock-screen-activity",
+};
 
 export interface MacPasskeySigningConfiguration {
   readonly appId: string;
@@ -1761,6 +1769,8 @@ export const resolveBuildOptions = Effect.fn("resolveBuildOptions")(function* (
     skipBuild,
     keepStage,
     signed,
+    lockScreenActivity:
+      platform === "mac" && Option.getOrElse(input.lockScreenActivity, () => false),
     verbose,
     mockUpdates,
     mockUpdateServerPort,
@@ -2816,6 +2826,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     | undefined,
   wslRuntimeBundled = false,
   arch?: typeof BuildArch.Type,
+  lockScreenActivity = false,
 ) {
   const buildConfig: Record<string, unknown> = {
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
@@ -2843,6 +2854,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
       ...(platform === "mac" ? MAC_APPLE_SPEECH_EXTRA_RESOURCES : []),
+      ...(platform === "mac" && lockScreenActivity ? [MAC_LOCK_SCREEN_ACTIVITY_RESOURCE] : []),
       ...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : []),
       ...(platform === "win" && wslRuntimeBundled ? WSL_RUNTIME_EXTRA_RESOURCES : []),
     ],
@@ -3895,6 +3907,22 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
   // electron-builder is filtering out stageResourcesDir directory in the AppImage for production
   const stageProdResourcesDir = path.join(stageAppDir, "apps/desktop/prod-resources");
   yield* fs.copy(stageResourcesDir, stageProdResourcesDir);
+  if (options.lockScreenActivity) {
+    yield* runCommand(
+      ChildProcess.make(
+        "node",
+        [
+          path.join(repoRoot, "apps/desktop/scripts/build-lock-screen-activity.mjs"),
+          "--arch",
+          options.arch,
+          "--output-dir",
+          path.join(stageAppDir, MAC_LOCK_SCREEN_ACTIVITY_RESOURCE.from),
+        ],
+        { cwd: repoRoot },
+      ),
+      { label: "build macOS lock-screen activity helper", verbose: options.verbose },
+    );
+  }
 
   const configuredMacPasskeySigning =
     options.platform === "mac" && options.signed
@@ -3983,6 +4011,7 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
         : undefined,
       bundlesWslRuntime({ platform: options.platform, runtimeArchivePath: options.wslRuntime }),
       options.arch,
+      options.lockScreenActivity,
     ),
     dependencies: stageDependencies,
     devDependencies: {
@@ -4269,6 +4298,10 @@ const buildDesktopArtifactCli = Command.make("build-desktop-artifact", {
     Flag.withDescription(
       "Enable signing/notarization discovery; Windows uses Azure Trusted Signing (env: T3CODE_DESKTOP_SIGNED).",
     ),
+    Flag.optional,
+  ),
+  lockScreenActivity: Flag.Boolean("lock-screen-activity").pipe(
+    Flag.withDescription("Include the experimental macOS lock-screen activity helper."),
     Flag.optional,
   ),
   verbose: Flag.Boolean("verbose").pipe(

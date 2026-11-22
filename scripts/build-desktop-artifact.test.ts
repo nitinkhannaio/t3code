@@ -619,6 +619,35 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }),
   );
 
+  it.effect("packages the lock-screen helper outside ASAR only for opted-in macOS builds", () =>
+    Effect.gen(function* () {
+      const helper = {
+        from: "apps/desktop/prod-resources/lock-screen-activity",
+        to: "lock-screen-activity",
+      };
+      const config = (platform: "mac" | "linux", enabled: boolean) =>
+        createBuildConfig(
+          platform,
+          platform === "mac" ? "dir" : "AppImage",
+          "0.1.12-preview.20261122.1",
+          false,
+          false,
+          undefined,
+          undefined,
+          false,
+          "arm64",
+          enabled,
+        );
+      assert.notDeepInclude((yield* config("mac", false)).extraResources, helper);
+      assert.notDeepInclude((yield* config("linux", true)).extraResources, helper);
+      assert.deepInclude((yield* config("mac", true)).extraResources, helper);
+      assert.include(
+        (yield* config("mac", true)).files,
+        "!apps/desktop/prod-resources/lock-screen-activity/**/*",
+      );
+    }),
+  );
+
   // pnpm writes "set this to true or false" placeholders into allowBuilds when a
   // tarball changes. pnpm ignores them, but the release build decode rejects them.
   it.effect("decodes the repo allowBuilds and every file: tarball it names exists", () =>
@@ -1815,6 +1844,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
             skipBuild: Option.none(),
             keepStage: Option.none(),
             signed: Option.none(),
+            lockScreenActivity: Option.none(),
             verbose: Option.none(),
             mockUpdates: Option.none(),
             mockUpdateServerPort: Option.none(),
@@ -1839,6 +1869,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         skipBuild: Option.some(false),
         keepStage: Option.some(false),
         signed: Option.some(false),
+        lockScreenActivity: Option.none(),
         verbose: Option.some(false),
         mockUpdates: Option.some(false),
         mockUpdateServerPort: Option.none(),
