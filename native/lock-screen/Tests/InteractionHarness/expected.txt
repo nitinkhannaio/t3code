@@ -1,0 +1,55 @@
+batch 1: snapshot rows=8 5 need you · 1 working · 1 waiting · 1 done content=- gate=arm
+  state: armed=true mode=collapsed shown=4 built=8 disclosure=collapsed footer=true more=4 more threads height=228 hit=934,300 372x228 safe=yes
+  outside shape: press=ignored("outside card shape") release=ignored("release without press")
+  with modifier: press=ignored("modifier held") release=ignored("release without press")
+  plain centre: press=pressed release=animate(toExpanded: true, reduceMotion: false)
+  state: armed=true mode=expanded shown=8 built=8 disclosure=expanded footer=true more=Show fewer height=372 hit=934,300 372x372 safe=yes
+  press left in flight: pressed
+batch 2: snapshot rows=6 2 need you · 2 working · 1 waiting · 1 done content=- gate=-
+  state: armed=true mode=expanded shown=6 built=6 disclosure=expanded footer=true more=Show fewer height=300 hit=934,300 372x300 safe=yes
+  pending release from previous batch: ignored("release without press")
+  outside shape: press=ignored("outside card shape") release=ignored("release without press")
+  with modifier: press=ignored("modifier held") release=ignored("release without press")
+  plain centre: press=pressed release=animate(toExpanded: false, reduceMotion: false)
+  state: armed=true mode=collapsed shown=4 built=6 disclosure=collapsed footer=true more=2 more threads height=228 hit=934,300 372x228 safe=yes
+  press left in flight: pressed
+batch 3: snapshot rows=6 2 need you · 2 working · 1 waiting · 1 done content=- gate=-
+  state: armed=true mode=collapsed shown=4 built=6 disclosure=collapsed footer=true more=2 more threads height=228 hit=934,300 372x228 safe=yes
+  pending release from previous batch: animate(toExpanded: true, reduceMotion: false)
+  state: armed=true mode=expanded shown=6 built=6 disclosure=expanded footer=true more=Show fewer height=300 hit=934,300 372x300 safe=yes
+  press left in flight: pressed
+batch 4: invalid=1 reasons=[T3GlassInteractionHarness.LiveParseError.tooManyRows] (kept previous; nothing re-evaluated)
+batch 5: snapshot rows=4 2 need you · 4 working · 1 done content=settle gate=disarm("nothing hidden")
+  state: armed=false mode=collapsed shown=4 built=4 disclosure=none footer=true more=3 more threads height=228 hit=934,300 372x228 safe=yes
+  pending release from previous batch: ignored("release without press")
+  outside shape: press=ignored("not armed") release=ignored("release without press")
+  with modifier: press=ignored("not armed") release=ignored("release without press")
+  plain centre: press=ignored("not armed") release=ignored("release without press")
+  state: armed=false mode=collapsed shown=4 built=4 disclosure=none footer=true more=3 more threads height=228 hit=934,300 372x228 safe=yes
+  press left in flight: ignored("not armed")
+batch 6: snapshot rows=8 5 need you · 1 working · 1 waiting · 2 done content=- gate=arm
+  state: armed=true mode=collapsed shown=4 built=8 disclosure=collapsed footer=true more=5 more threads height=228 hit=934,300 372x228 safe=yes
+  pending release from previous batch: ignored("release without press")
+  outside shape: press=ignored("outside card shape") release=ignored("release without press")
+  with modifier: press=ignored("modifier held") release=ignored("release without press")
+  plain centre: press=pressed release=animate(toExpanded: true, reduceMotion: false)
+  state: armed=true mode=expanded shown=8 built=8 disclosure=expanded footer=true more=1 more thread height=372 hit=934,300 372x372 safe=yes
+  press left in flight: pressed
+batch 7: clear content=settle gate=disarm("card hidden")
+  state: armed=false mode=collapsed shown=0 built=0 disclosure=none footer=false more=- height=48 hit=934,300 372x48 safe=yes
+  pending release from previous batch: ignored("release without press")
+  outside shape: press=ignored("not armed") release=ignored("release without press")
+  with modifier: press=ignored("not armed") release=ignored("release without press")
+  plain centre: press=ignored("not armed") release=ignored("release without press")
+  state: armed=false mode=collapsed shown=0 built=0 disclosure=none footer=false more=- height=48 hit=934,300 372x48 safe=yes
+  press left in flight: ignored("not armed")
+batch 8: snapshot rows=8 5 need you · 1 working · 1 waiting · 1 done content=- gate=arm
+  state: armed=true mode=collapsed shown=4 built=8 disclosure=collapsed footer=true more=4 more threads height=228 hit=934,300 372x228 safe=yes
+  pending release from previous batch: ignored("release without press")
+  outside shape: press=ignored("outside card shape") release=ignored("release without press")
+  with modifier: press=ignored("modifier held") release=ignored("release without press")
+  plain centre: press=pressed release=animate(toExpanded: true, reduceMotion: false)
+  state: armed=true mode=expanded shown=8 built=8 disclosure=expanded footer=true more=Show fewer height=372 hit=934,300 372x372 safe=yes
+  press left in flight: pressed
+closed: EOF; armed=true -> runner would shut down (disarm before hide/teardown)
+after shutdown: armed=false reArm=-

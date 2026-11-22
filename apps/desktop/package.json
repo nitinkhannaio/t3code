@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist-electron/boot.cjs",
   "scripts": {
+    "build:lock-screen-activity": "node scripts/build-lock-screen-activity.mjs",
     "ensure:electron": "node scripts/ensure-electron-runtime.mjs",
     "start": "node scripts/start-electron.mjs",
     "test": "vp test run --passWithNoTests",
