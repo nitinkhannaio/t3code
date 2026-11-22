@@ -263,6 +263,8 @@ function sameApartFromStreaming(
 
 export function createEnvironmentThreadShellAtoms(input: {
   readonly catalogValueAtom: Atom.Atom<EnvironmentCatalogState>;
+  /** When supplied, cached shells from offline environments are excluded from lists and rollups. */
+  readonly liveEnvironmentIdsAtom?: Atom.Atom<ReadonlySet<EnvironmentId>>;
   readonly snapshotAtom: (
     environmentId: EnvironmentId,
   ) => Atom.Atom<OrchestrationV2ShellSnapshot | null>;
@@ -298,10 +300,12 @@ export function createEnvironmentThreadShellAtoms(input: {
   };
 
   const environmentThreadsAtom = Atom.family((environmentId: EnvironmentId) =>
-    Atom.make(
-      (get): ReadonlyArray<OrchestrationV2ThreadShell> =>
-        get(input.snapshotAtom(environmentId))?.threads ?? EMPTY_THREADS,
-    ).pipe(Atom.withLabel(`environment-threads:${environmentId}`)),
+    Atom.make((get): ReadonlyArray<OrchestrationV2ThreadShell> => {
+      if (input.liveEnvironmentIdsAtom && !get(input.liveEnvironmentIdsAtom).has(environmentId)) {
+        return EMPTY_THREADS;
+      }
+      return get(input.snapshotAtom(environmentId))?.threads ?? EMPTY_THREADS;
+    }).pipe(Atom.withLabel(`environment-threads:${environmentId}`)),
   );
 
   const environmentThreadIndexAtom = Atom.family((environmentId: EnvironmentId) =>

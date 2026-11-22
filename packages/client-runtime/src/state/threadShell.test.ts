@@ -13,6 +13,7 @@ import { Atom, AtomRegistry } from "effect/reactivity";
 import { describe, expect, it } from "vite-plus/test";
 
 import { PrimaryConnectionTarget } from "../connection/model.ts";
+import { threadKey } from "./entities.ts";
 import { v2Now, v2ShellSnapshot, v2ThreadShell } from "./orchestrationV2TestFixtures.ts";
 import { applyShellStreamEvent } from "./shellReducer.ts";
 import { isThreadWorking } from "./threadInbox.ts";
@@ -454,11 +455,15 @@ describe("v2 thread shell lists", () => {
 
   it("brings an approval up a chain of tasks across three environments to its root", () => {
     const thirdEnvironmentId = EnvironmentId.make("third-environment-v2");
-    const { registry, threads, snapshotAtom } = makeHarness([
-      environmentId,
-      remoteEnvironmentId,
-      thirdEnvironmentId,
-    ]);
+    const environmentIds = [environmentId, remoteEnvironmentId, thirdEnvironmentId];
+    const { registry, threads, snapshotAtom, catalogValueAtom } = makeHarness(environmentIds);
+    const liveEnvironmentIdsAtom = Atom.make<ReadonlySet<EnvironmentId>>(new Set(environmentIds));
+    const liveThreads = createEnvironmentThreadShellAtoms({
+      catalogValueAtom,
+      snapshotAtom,
+      liveEnvironmentIdsAtom,
+      hiddenThreadTagsAtom: () => Atom.make(null),
+    });
     const root = v2ThreadShell;
     const running = {
       creationSource: "mcp" as const,
@@ -500,6 +505,20 @@ describe("v2 thread shell lists", () => {
     expect(registry.get(threads.threadShellAtom(taskRef))?.pendingSubagentRequest).toBe("approval");
     expect(registry.get(threads.threadShellAtom(rootRef))?.pendingSubagentRequest).toBe("approval");
 
+    const liveRootRequests = liveThreads.pendingSubagentRequestsAtom(environmentId);
+    const nestedKey = threadKey({ environmentId: thirdEnvironmentId, threadId: nestedTask.id });
+    const disposeLiveRequests = registry.mount(liveRootRequests);
+    const disposeLiveDelegated = registry.mount(liveThreads.delegatedUnderParentAtom);
+    expect(registry.get(liveRootRequests).get(root.id)).toBe("approval");
+    expect(registry.get(liveThreads.delegatedUnderParentAtom).has(nestedKey)).toBe(true);
+    registry.set(liveEnvironmentIdsAtom, new Set([environmentId, thirdEnvironmentId]));
+    expect(registry.get(liveRootRequests).has(root.id)).toBe(false);
+    expect(registry.get(liveThreads.delegatedUnderParentAtom).has(nestedKey)).toBe(false);
+    expect(registry.get(threads.threadShellAtom(rootRef))?.pendingSubagentRequest).toBe("approval");
+    registry.set(liveEnvironmentIdsAtom, new Set(environmentIds));
+    expect(registry.get(liveRootRequests).get(root.id)).toBe("approval");
+    expect(registry.get(liveThreads.delegatedUnderParentAtom).has(nestedKey)).toBe(true);
+
     // Once it is answered, neither stays flagged.
     registry.set(snapshotAtom(thirdEnvironmentId), {
       ...v2ShellSnapshot,
@@ -513,6 +532,8 @@ describe("v2 thread shell lists", () => {
       threads: [root, { ...returningTask, pendingRuntimeRequest: approval }],
     });
     expect(registry.get(threads.threadShellAtom(rootRef))?.pendingSubagentRequest).toBe("approval");
+    disposeLiveDelegated();
+    disposeLiveRequests();
     disposeTask();
     disposeRoot();
     registry.dispose();
