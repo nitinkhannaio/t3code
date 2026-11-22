@@ -1101,6 +1101,183 @@ export const DesktopAppleSpeechTranscribeInputSchema = Schema.Struct({
   pcm: Schema.Uint8Array,
 });
 
+/** Lock-screen row statuses, in the order the card shows them. */
+export const LOCK_SCREEN_STATUSES = [
+  "approval",
+  "input",
+  "request",
+  "limited",
+  "failed",
+  "working",
+  "waiting",
+  "done",
+] as const;
+export type LockScreenStatus = (typeof LOCK_SCREEN_STATUSES)[number];
+export type LockScreenGroup = "attention" | "working" | "waiting" | "done";
+export const LOCK_SCREEN_ROW_LIMIT = 8;
+/** The card shows 4 rows collapsed and up to 8 expanded, depending on screen room. */
+export const LOCK_SCREEN_SHOWN_ROW_COUNTS = ["4", "5", "6", "7", "8"] as const;
+export type LockScreenShownRowCount = (typeof LOCK_SCREEN_SHOWN_ROW_COUNTS)[number];
+const LOCK_SCREEN_ATTENTION_STATUSES = [
+  "approval",
+  "input",
+  "request",
+  "limited",
+  "failed",
+] as const satisfies ReadonlyArray<LockScreenStatus>;
+/** Statuses whose row counts its duration from `since`. */
+export const LOCK_SCREEN_TIMED_STATUSES: ReadonlySet<LockScreenStatus> = new Set([
+  "working",
+  "waiting",
+]);
+const LOCK_SCREEN_ICON_MAX_CHARS = 6144;
+const LockScreenIcon = Schema.NullOr(
+  Schema.String.check(Schema.isMaxLength(LOCK_SCREEN_ICON_MAX_CHARS)),
+);
+const LOCK_SCREEN_ICON_PATTERN = /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/;
+
+/** The only project icons the lock screen accepts: small, inline PNGs it never has to fetch. */
+export function isLockScreenProjectIcon(value: string | null | undefined): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= LOCK_SCREEN_ICON_MAX_CHARS &&
+    LOCK_SCREEN_ICON_PATTERN.test(value)
+  );
+}
+
+export function lockScreenStatusGroup(status: LockScreenStatus): LockScreenGroup {
+  return status === "working" || status === "waiting" || status === "done" ? status : "attention";
+}
+
+/** The largest count the card shows; larger ones are clamped before anything is derived from them. */
+const LOCK_SCREEN_MAX_COUNT = 9999;
+export const LOCK_SCREEN_TEXT_MAX_CHARS = 120;
+const LOCK_SCREEN_NAME_MAX_CHARS = 80;
+
+export function clampLockScreenCount(count: number): number {
+  return Math.min(LOCK_SCREEN_MAX_COUNT, Math.max(0, Math.floor(count)));
+}
+
+// Marks, joiners, skin tones and tag characters belong to the character before them.
+const CONTINUES_CHARACTER = /^[\p{M}\u200d\u{1f3fb}-\u{1f3ff}\u{e0020}-\u{e007f}]/u;
+
+/**
+ * Cuts between characters so the result, ellipsis included, fits in `maxChars` UTF-16 units.
+ * Hermes has no `Intl.Segmenter`, so boundaries are found from code points.
+ */
+export function clipLockScreenText(value: string, maxChars: number): string {
+  if (value.length <= maxChars) return value;
+  const points = Array.from(value);
+  let end = 0;
+  let length = 0;
+  while (end < points.length && length + points[end]!.length <= maxChars - 1) {
+    length += points[end]!.length;
+    end++;
+  }
+  while (end > 0 && (CONTINUES_CHARACTER.test(points[end] ?? "") || points[end - 1] === "\u200d")) {
+    end--;
+  }
+  return `${points.slice(0, end).join("").trimEnd()}…`;
+}
+
+// Zero-width joiners stay so emoji sequences survive; they alone never make a line visible.
+const INVISIBLE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu;
+const ZWJ = /\u200d/g;
+
+/**
+ * One visible line for a title or project name: control and format characters dropped,
+ * whitespace collapsed. Null when nothing visible is left, which the native card would reject.
+ */
+export function lockScreenLine(value: string): string | null {
+  const flat = value
+    .replace(INVISIBLE, (char) => (char === "\u200d" ? char : /\s/.test(char) ? " " : ""))
+    .replace(/\s+/g, " ")
+    .trim();
+  if (flat.replace(ZWJ, "").trim().length === 0) return null;
+  return clipLockScreenText(flat, LOCK_SCREEN_NAME_MAX_CHARS);
+}
+
+// Unbounded here so a huge count is clamped by the host rather than rejected, which would
+// leave the previous card showing.
+const LockScreenCount = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
+const LockScreenText = Schema.String.check(Schema.isMaxLength(LOCK_SCREEN_TEXT_MAX_CHARS));
+
+/**
+ * What the app hands the macOS lock-screen card. Titles, start times and providers exist only in
+ * "threads" mode; "projects" mode carries per-project counts. All card copy comes localized in
+ * `text`. An icon the card would refuse becomes null on the host rather than failing the card.
+ */
+export const DesktopLockScreenActivitySchema = Schema.Struct({
+  asOf: Schema.Finite,
+  mode: Schema.Literals(["threads", "projects"]),
+  counts: Schema.Struct({
+    attention: LockScreenCount,
+    working: LockScreenCount,
+    waiting: LockScreenCount,
+    done: LockScreenCount,
+  }),
+  rows: Schema.Array(
+    Schema.Struct({
+      status: Schema.Literals(LOCK_SCREEN_STATUSES),
+      provider: Schema.NullOr(Schema.String.check(Schema.isMaxLength(64))),
+      title: Schema.NullOr(Schema.String.check(Schema.isMaxLength(LOCK_SCREEN_NAME_MAX_CHARS))),
+      since: Schema.NullOr(Schema.Finite),
+      projectIcon: LockScreenIcon,
+    }),
+  ).check(Schema.isMaxLength(LOCK_SCREEN_ROW_LIMIT)),
+  projects: Schema.Array(
+    Schema.Struct({
+      /** Null shows `text.noProject` or `text.untitledProject`, so the copy never decides freshness. */
+      name: Schema.NullOr(Schema.String.check(Schema.isMaxLength(LOCK_SCREEN_NAME_MAX_CHARS))),
+      /** The bucket for threads without a project. */
+      noProject: Schema.Boolean,
+      projectIcon: LockScreenIcon,
+      attention: LockScreenCount,
+      attentionStatus: Schema.NullOr(Schema.Literals(LOCK_SCREEN_ATTENTION_STATUSES)),
+      working: LockScreenCount,
+      done: LockScreenCount,
+    }),
+  ).check(Schema.isMaxLength(LOCK_SCREEN_ROW_LIMIT)),
+  /** Items left out when the card shows k rows, for k = 4..8; zero counts are omitted. */
+  hidden: Schema.Struct({
+    "4": Schema.optionalKey(LockScreenCount),
+    "5": Schema.optionalKey(LockScreenCount),
+    "6": Schema.optionalKey(LockScreenCount),
+    "7": Schema.optionalKey(LockScreenCount),
+    "8": Schema.optionalKey(LockScreenCount),
+  }),
+  text: Schema.Struct({
+    summary: Schema.Array(LockScreenText).check(Schema.isMaxLength(4)),
+    updated: LockScreenText,
+    /** "N more threads" or "N more projects", keyed by each count in `hidden`. */
+    more: Schema.Record(
+      Schema.String.check(Schema.isPattern(/^[1-9]\d{0,4}$/)),
+      LockScreenText,
+    ).check(Schema.isMaxProperties(LOCK_SCREEN_SHOWN_ROW_COUNTS.length)),
+    showFewer: LockScreenText,
+    statuses: Schema.Struct({
+      approval: LockScreenText,
+      input: LockScreenText,
+      request: LockScreenText,
+      limited: LockScreenText,
+      failed: LockScreenText,
+      working: LockScreenText,
+      waiting: LockScreenText,
+      done: LockScreenText,
+    }),
+    duration: Schema.Struct({
+      seconds: LockScreenText,
+      minutes: LockScreenText,
+      hours: LockScreenText,
+    }),
+    agent: LockScreenText,
+    /** Host-only: names for project rows without a name of their own. */
+    noProject: LockScreenText,
+    untitledProject: LockScreenText,
+  }),
+});
+export type DesktopLockScreenActivity = typeof DesktopLockScreenActivitySchema.Type;
+
 export const SystemSettingsPaneSchema = Schema.Literals(["full-disk-access"]);
 export type SystemSettingsPane = typeof SystemSettingsPaneSchema.Type;
 
@@ -1129,6 +1306,14 @@ export interface DesktopBridge {
   getSystemLocale: () => string | null;
   /** The OS's preferred languages, most preferred first; `navigator.languages` is pinned like the locale. */
   getPreferredSystemLanguages: () => readonly string[];
+  /** True on a macOS version the lock-screen helper supports, when the helper is installed. */
+  getLockScreenActivityAvailable?: () => boolean;
+  /** `null` clears the card. The desktop host drops titles and rows its own settings do not allow. */
+  setLockScreenActivity?: (activity: DesktopLockScreenActivity | null) => Promise<void>;
+  /** The host lost what it was showing (the renderer hung or reloaded) and needs it again. */
+  onLockScreenActivityRepublish?: (listener: () => void) => () => void;
+  /** Hears the current lock state, then each change; the card is built only while locked. */
+  onLockScreenLockedChange?: (listener: (locked: boolean) => void) => () => void;
   /** False when the OS turned off middle-click PRIMARY paste (`gtk-enable-primary-paste`). */
   getPrimaryPasteEnabled?: () => boolean;
   getLocalEnvironmentBootstraps: () => readonly DesktopEnvironmentBootstrap[];
